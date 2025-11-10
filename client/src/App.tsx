@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -24,8 +24,76 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useLocation } from "wouter";
 import { PERMISSOES_POR_CARGO, type Cargo } from "@shared/schema";
+import type { ComponentType } from "react";
+
+// Configuração centralizada de rotas
+interface RouteConfig {
+  path: string;
+  component: ComponentType;
+  allowedCargos: Cargo[];
+  name: string;
+}
+
+const ROUTES: RouteConfig[] = [
+  {
+    path: "/",
+    component: Dashboard,
+    allowedCargos: ["PASTOR"],
+    name: "Dashboard",
+  },
+  {
+    path: "/pastoral",
+    component: Pastoral,
+    allowedCargos: ["PASTOR", "PRESBITERO"],
+    name: "Pastoral",
+  },
+  {
+    path: "/financeiro",
+    component: Financeiro,
+    allowedCargos: ["PASTOR", "TESOUREIRO"],
+    name: "Financeiro",
+  },
+  {
+    path: "/diaconal",
+    component: Diaconal,
+    allowedCargos: ["PASTOR", "DIACONO"],
+    name: "Diaconal",
+  },
+  {
+    path: "/boletim",
+    component: BoletimDominical,
+    allowedCargos: ["PASTOR", "PRESBITERO"],
+    name: "Boletim",
+  },
+  {
+    path: "/atas",
+    component: SecretariaAtas,
+    allowedCargos: ["PASTOR", "PRESBITERO"],
+    name: "Atas",
+  },
+];
+
+// Componente de proteção de rotas
+function ProtectedRoute({ 
+  component: Component, 
+  allowedCargos 
+}: { 
+  component: ComponentType; 
+  allowedCargos: Cargo[] 
+}) {
+  const { usuario, getRotaPadrão } = useAuth();
+  
+  if (!usuario) {
+    return <Redirect to="/login" />;
+  }
+  
+  if (!allowedCargos.includes(usuario.cargo)) {
+    return <Redirect to={getRotaPadrão()} />;
+  }
+  
+  return <Component />;
+}
 
 function AppHeader() {
   const { usuario, logout, temPermissao, getRotaPadrão } = useAuth();
@@ -49,30 +117,14 @@ function AppHeader() {
       .toUpperCase();
   };
 
-  // Define páginas permitidas para cada cargo
-  const paginasPorCargo: Record<Cargo, Array<{ nome: string; rota: string }>> = {
-    PASTOR: [
-      { nome: "Dashboard", rota: "/" },
-      { nome: "Pastoral", rota: "/pastoral" },
-      { nome: "Financeiro", rota: "/financeiro" },
-      { nome: "Diaconal", rota: "/diaconal" },
-      { nome: "Boletim", rota: "/boletim" },
-      { nome: "Atas", rota: "/atas" },
-    ],
-    PRESBITERO: [
-      { nome: "Pastoral", rota: "/pastoral" },
-      { nome: "Boletim", rota: "/boletim" },
-      { nome: "Atas", rota: "/atas" },
-    ],
-    TESOUREIRO: [
-      { nome: "Financeiro", rota: "/financeiro" },
-    ],
-    DIACONO: [
-      { nome: "Diaconal", rota: "/diaconal" },
-    ],
-  };
+  // Busca páginas permitidas usando a configuração centralizada
+  const paginasDisponiveis = ROUTES.filter(route => 
+    route.allowedCargos.includes(usuario.cargo)
+  ).map(route => ({
+    nome: route.name,
+    rota: route.path
+  }));
 
-  const paginasDisponiveis = paginasPorCargo[usuario.cargo];
   const temMultiplasPaginas = paginasDisponiveis.length > 1;
 
   return (
@@ -140,7 +192,7 @@ function AppHeader() {
 }
 
 function Router() {
-  const { usuario, getRotaPadrão, temPermissao } = useAuth();
+  const { usuario, getRotaPadrão } = useAuth();
 
   if (!usuario) {
     return (
@@ -154,31 +206,20 @@ function Router() {
     );
   }
 
-  // Verificação de permissão para cada rota
-  const rotasPorCargo: Record<Cargo, string[]> = {
-    PASTOR: ["/", "/pastoral", "/financeiro", "/diaconal", "/boletim", "/atas"],
-    PRESBITERO: ["/pastoral", "/boletim", "/atas"],
-    TESOUREIRO: ["/financeiro"],
-    DIACONO: ["/diaconal"],
-  };
-
-  const rotasPermitidas = rotasPorCargo[usuario.cargo];
-
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden">
       <AppHeader />
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 max-w-7xl mx-auto">
           <Switch>
-            {rotasPermitidas.includes("/") && <Route path="/" component={Dashboard} />}
-            {rotasPermitidas.includes("/pastoral") && <Route path="/pastoral" component={Pastoral} />}
-            {rotasPermitidas.includes("/financeiro") && <Route path="/financeiro" component={Financeiro} />}
-            {rotasPermitidas.includes("/diaconal") && <Route path="/diaconal" component={Diaconal} />}
-            {rotasPermitidas.includes("/boletim") && <Route path="/boletim" component={BoletimDominical} />}
-            {rotasPermitidas.includes("/atas") && <Route path="/atas" component={SecretariaAtas} />}
-            <Route path="/">
-              <Redirect to={getRotaPadrão()} />
-            </Route>
+            {ROUTES.map((route) => (
+              <Route key={route.path} path={route.path}>
+                <ProtectedRoute 
+                  component={route.component} 
+                  allowedCargos={route.allowedCargos} 
+                />
+              </Route>
+            ))}
             <Route component={NotFound} />
           </Switch>
         </div>
