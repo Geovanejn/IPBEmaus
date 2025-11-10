@@ -2,7 +2,50 @@
 
 ## ✅ Problemas Corrigidos Nesta Sessão
 
-### 1. Rota /painel Não Encontrada (CORREÇÃO - 10/11/2025)
+### 1. Erro no Painel Diaconal - Rota /api/usuarios Faltante (CORREÇÃO - 10/11/2025)
+**Problema:** Ao acessar `/diaconal`, o sistema exibia "Erro ao carregar dados. Tente novamente." O componente Diaconal tentava buscar dados da rota `/api/usuarios` que não existia no backend, causando erro na query do React Query (`isErrorUsuarios` ficava `true`).
+
+**Solução Implementada:**
+- Adicionado método `getUsuarios()` na interface IStorage e classe DatabaseStorage em `server/storage.ts`
+- Criada rota GET `/api/usuarios` em `server/routes.ts` que:
+  - Busca todos os usuários do banco de dados
+  - Remove as senhas antes de retornar (segurança)
+  - Trata erros adequadamente com try/catch
+- Seguiu o padrão das outras rotas GET do projeto (getMembros, getAcoesDiaconais, etc.)
+
+**Código Adicionado:**
+```typescript
+// server/storage.ts
+async getUsuarios(): Promise<Usuario[]> {
+  await this.ensureInitialized();
+  return await db.select().from(schema.usuarios);
+}
+
+// server/routes.ts
+app.get("/api/usuarios", async (req, res) => {
+  try {
+    const usuarios = await storage.getUsuarios();
+    const usuariosSemSenha = usuarios.map(({ senha, ...usuario }) => usuario);
+    res.json(usuariosSemSenha);
+  } catch (error) {
+    res.status(500).json({ message: "Erro ao buscar usuários" });
+  }
+});
+```
+
+**Comportamento:**
+- Módulo Diaconal agora carrega corretamente sem erros
+- Rota retorna lista de usuários sem campo senha (segurança)
+- Apenas o módulo Diaconal usa esta rota atualmente
+
+**Validação:**
+- Logs do servidor confirmam: `GET /api/usuarios 200 in 142ms`
+- Architect aprovou: segurança adequada, padrões seguidos
+- Nenhum vazamento de dados sensíveis
+
+---
+
+### 2. Rota /painel Não Encontrada (CORREÇÃO - 10/11/2025)
 **Problema:** Ao acessar `/painel`, o sistema mostrava "Erro ao carregar dados. Tente novamente." porque a rota não existia mais no sistema de rotas centralizado após a refatoração recente. O Dashboard estava apenas disponível em `/`.
 
 **Solução Implementada:**
