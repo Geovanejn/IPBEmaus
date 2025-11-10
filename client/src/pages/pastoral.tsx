@@ -1,16 +1,21 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Users,
   UserPlus,
@@ -26,7 +31,19 @@ import {
   Eye,
   CakeSlice,
 } from "lucide-react";
-import { type Membro, type Visitante } from "@shared/schema";
+import { type Membro, type Visitante, insertMembroSchema, insertVisitanteSchema } from "@shared/schema";
+
+const membroFormSchema = insertMembroSchema.extend({
+  consentimentoLGPD: z.boolean().refine((val) => val === true, {
+    message: "É necessário consentir com o uso dos dados",
+  }),
+});
+
+const visitanteFormSchema = insertVisitanteSchema.extend({
+  consentimentoLGPD: z.boolean().refine((val) => val === true, {
+    message: "É necessário consentir com o uso dos dados",
+  }),
+});
 
 export default function Pastoral() {
   const { usuario, temPermissao } = useAuth();
@@ -43,6 +60,131 @@ export default function Pastoral() {
 
   const { data: visitantes = [], isLoading: isLoadingVisitantes } = useQuery<Visitante[]>({
     queryKey: ["/api/visitantes"],
+  });
+
+  const formMembro = useForm<z.infer<typeof membroFormSchema>>({
+    resolver: zodResolver(membroFormSchema),
+    defaultValues: {
+      nome: "",
+      email: null,
+      telefone: null,
+      dataNascimento: null,
+      endereco: null,
+      bairro: null,
+      cidade: "",
+      estado: null,
+      cep: null,
+      estadoCivil: null,
+      profissao: null,
+      dataBatismo: null,
+      dataProfissaoFe: null,
+      familiaId: null,
+      status: "ativo",
+      fotoUrl: null,
+      consentimentoLGPD: false,
+    },
+  });
+
+  const formVisitante = useForm<z.infer<typeof visitanteFormSchema>>({
+    resolver: zodResolver(visitanteFormSchema),
+    defaultValues: {
+      nome: "",
+      email: null,
+      telefone: null,
+      endereco: null,
+      comoConheceu: null,
+      membroConvidouId: null,
+      dataVisita: new Date().toISOString().split("T")[0],
+      observacoes: null,
+      status: "novo",
+      consentimentoLGPD: false,
+    },
+  });
+
+  const criarMembroMutation = useMutation({
+    mutationFn: async (dados: z.infer<typeof membroFormSchema>) => {
+      const res = await apiRequest("POST", "/api/membros", dados);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
+      toast({
+        title: "Membro cadastrado",
+        description: "O membro foi cadastrado com sucesso",
+      });
+      setDialogNovoMembro(false);
+      formMembro.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao cadastrar",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const criarVisitanteMutation = useMutation({
+    mutationFn: async (dados: z.infer<typeof visitanteFormSchema>) => {
+      const res = await apiRequest("POST", "/api/visitantes", dados);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/visitantes"] });
+      toast({
+        title: "Visitante registrado",
+        description: "O visitante foi registrado com sucesso",
+      });
+      setDialogNovoVisitante(false);
+      formVisitante.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao registrar",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletarMembroMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/membros/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/membros"] });
+      toast({
+        title: "Membro removido",
+        description: "O membro foi removido com sucesso",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao remover",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletarVisitanteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/visitantes/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/visitantes"] });
+      toast({
+        title: "Visitante removido",
+        description: "O visitante foi removido com sucesso",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao remover",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const calcularIdade = (dataNascimento: string | null): number | null => {
