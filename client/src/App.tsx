@@ -212,6 +212,11 @@ function Router() {
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 max-w-7xl mx-auto">
           <Switch>
+            {/* Redireciona usuários autenticados que tentam acessar /login */}
+            <Route path="/login">
+              <Redirect to={getRotaPadrão()} />
+            </Route>
+            
             {ROUTES.map((route) => (
               <Route key={route.path} path={route.path}>
                 <ProtectedRoute 
