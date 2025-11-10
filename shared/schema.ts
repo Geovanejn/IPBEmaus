@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, date } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, date, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -133,12 +133,41 @@ export type AcaoDiaconal = typeof acoesDiaconais.$inferSelect;
 export const boletins = pgTable("boletins", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   data: date("data").notNull(),
-  titulo: text("titulo").notNull(),
-  versiculoSemana: text("versiculo_semana"),
-  devocional: text("devocional"),
+  numeroEdicao: integer("numero_edicao").notNull(),
+  anoEdicao: integer("ano_edicao").notNull(),
+  
+  // Informações da semana
+  ofertaDia: text("oferta_dia"),
+  
+  // Semana de Oração (opcional)
+  semanaOracao: jsonb("semana_oracao"), // { dataInicio, dataFim, programacao: [{dia, horario, tema}] }
+  
+  // SAF e Eventos Especiais
+  saf: text("saf"),
   eventos: text("eventos").array(),
-  pedidosOracao: text("pedidos_oracao").array(),
+  
+  // Aniversários
+  aniversariosMembros: jsonb("aniversarios_membros"), // [{nome, data, tipo}] - será populado automaticamente
+  aniversariosCasamento: jsonb("aniversarios_casamento"), // [{nomes, data, bodas}]
+  
+  // Pedidos de Oração (categorizados)
+  pedidosOracao: jsonb("pedidos_oracao"), // { conversao: [], direcao: [], igreja: [], emprego: [], saude: [], outros: [] }
+  
+  // Relatório EBD
+  relatorioEbd: jsonb("relatorio_ebd"), // { matriculados, domingos: [{data, presentes, ausentes, visitantes, biblias}] }
+  
+  // Liturgia do Culto
+  liturgia: jsonb("liturgia"), // Array de itens na ordem: [{tipo: 'preludio|hino|leitura|oracao|etc', conteudo}]
+  
+  // Devocional/Mensagem
+  tituloMensagem: text("titulo_mensagem").notNull(),
+  textoMensagem: text("texto_mensagem"),
+  devocional: text("devocional"),
+  
+  // Avisos gerais
   avisos: text("avisos").array(),
+  
+  // Controle
   publicado: boolean("publicado").notNull().default(false),
   pdfUrl: text("pdf_url"),
   criadoPorId: varchar("criado_por_id").notNull(),

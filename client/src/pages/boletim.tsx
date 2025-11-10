@@ -31,7 +31,9 @@ import { type Boletim, type Membro, type Visitante, insertBoletimSchema } from "
 
 const boletimFormSchema = insertBoletimSchema.extend({
   data: z.string().min(1, "Data é obrigatória"),
-  titulo: z.string().min(1, "Título é obrigatório"),
+  tituloMensagem: z.string().min(1, "Título da mensagem é obrigatório"),
+  numeroEdicao: z.number().min(1, "Número da edição é obrigatório"),
+  anoEdicao: z.number().min(2000, "Ano é obrigatório"),
 });
 
 type BoletimFormData = z.infer<typeof boletimFormSchema>;
@@ -70,12 +72,21 @@ export default function BoletimDominical() {
     resolver: zodResolver(boletimFormSchema),
     defaultValues: {
       data: "",
-      titulo: "",
-      versiculoSemana: "",
-      devocional: "",
+      numeroEdicao: 1,
+      anoEdicao: new Date().getFullYear(),
+      tituloMensagem: "",
+      ofertaDia: "",
+      saf: "",
       eventos: [],
-      pedidosOracao: [],
+      aniversariosCasamento: null,
+      pedidosOracao: null,
+      relatorioEbd: null,
+      liturgia: null,
+      textoMensagem: "",
+      devocional: "",
       avisos: [],
+      semanaOracao: null,
+      aniversariosMembros: null,
       publicado: false,
       pdfUrl: null,
       criadoPorId: usuario?.id || "",
