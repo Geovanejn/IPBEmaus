@@ -196,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==================== TRANSAÇÕES FINANCEIRAS ====================
-  app.get("/api/transacoes", async (req, res) => {
+  app.get("/api/transacoes-financeiras", async (req, res) => {
     try {
       const transacoes = await storage.getTransacoes();
       res.json(transacoes);
@@ -205,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/transacoes/:id", async (req, res) => {
+  app.get("/api/transacoes-financeiras/:id", async (req, res) => {
     try {
       const transacao = await storage.getTransacao(req.params.id);
       if (!transacao) {
@@ -217,7 +217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/transacoes", async (req, res) => {
+  app.post("/api/transacoes-financeiras", async (req, res) => {
     try {
       const dados = insertTransacaoFinanceiraSchema.parse(req.body);
       const transacao = await storage.criarTransacao(dados);

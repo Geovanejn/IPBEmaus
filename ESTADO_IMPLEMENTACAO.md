@@ -98,7 +98,7 @@
 **Status:** ✅ Implementado (Frontend e Backend)
 
 #### Backend
-- [x] GET `/api/transacoes-financeiras` - Listar transações (Nota: rota nomeada como `/api/transacoes` no código)
+- [x] GET `/api/transacoes-financeiras` - Listar transações
 - [x] GET `/api/transacoes-financeiras/:id` - Buscar transação
 - [x] POST `/api/transacoes-financeiras` - Criar transação
 
