@@ -27,6 +27,7 @@ const db = drizzle({ client: pool, schema });
 
 export interface IStorage {
   // Usuários
+  getUsuarios(): Promise<Usuario[]>;
   getUsuario(id: string): Promise<Usuario | undefined>;
   getUsuarioPorEmail(email: string): Promise<Usuario | undefined>;
   criarUsuario(usuario: InsertUsuario): Promise<Usuario>;
@@ -278,6 +279,11 @@ export class DatabaseStorage implements IStorage {
         observacoes: "Oração e leitura bíblica realizada",
       },
     ]);
+  }
+
+  async getUsuarios(): Promise<Usuario[]> {
+    await this.ensureInitialized();
+    return await db.select().from(schema.usuarios);
   }
 
   async getUsuario(id: string): Promise<Usuario | undefined> {

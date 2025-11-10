@@ -38,6 +38,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== USUÁRIOS ====================
+  app.get("/api/usuarios", async (req, res) => {
+    try {
+      const usuarios = await storage.getUsuarios();
+      // Remover senhas de todos os usuários antes de retornar
+      const usuariosSemSenha = usuarios.map(({ senha, ...usuario }) => usuario);
+      res.json(usuariosSemSenha);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
+  });
+
   // ==================== MEMBROS ====================
   app.get("/api/membros", async (req, res) => {
     try {
