@@ -1,13 +1,19 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Heart,
   Plus,
@@ -17,84 +23,116 @@ import {
   DollarSign,
   Calendar,
   User,
+  Loader2,
 } from "lucide-react";
-import { type AcaoDiaconal } from "@shared/schema";
+import { type AcaoDiaconal, type Usuario, insertAcaoDiaconalSchema } from "@shared/schema";
+
+const acaoDiaconalFormSchema = insertAcaoDiaconalSchema.extend({
+  valorGasto: z.union([z.string(), z.number(), z.null()]).transform((val) => {
+    if (!val || val === "") return null;
+    if (typeof val === 'string') {
+      const num = parseFloat(val);
+      return isNaN(num) ? null : Math.round(num * 100);
+    }
+    return val;
+  }).nullable(),
+});
+
+type AcaoDiaconalFormData = z.infer<typeof acaoDiaconalFormSchema>;
 
 export default function Diaconal() {
-  const { temPermissao } = useAuth();
+  const { usuario, temPermissao } = useAuth();
+  const { toast } = useToast();
   const [dialogNovaAcao, setDialogNovaAcao] = useState(false);
 
   const podeEditar = temPermissao("diaconal", "total");
 
-  // Mock data para demonstração visual
-  const acoes: (AcaoDiaconal & { responsavelNome?: string })[] = [
-    {
-      id: "1",
-      tipo: "cesta_basica",
-      descricao: "Distribuição de cesta básica para família carente",
-      beneficiario: "Família Silva",
-      telefone: "(11) 98765-1111",
-      endereco: "Rua das Acácias, 45 - Jardim São Paulo",
-      valorGasto: 15000, // R$ 150,00
-      data: "2024-11-01",
-      responsavelId: "dc1",
-      observacoes: "Família com 5 pessoas, incluindo 3 crianças",
-      criadoEm: new Date(),
-      responsavelNome: "Dc. Carlos Costa",
-    },
-    {
-      id: "2",
-      tipo: "visita",
-      descricao: "Visita a irmão enfermo",
-      beneficiario: "João Pedro Oliveira",
-      telefone: "(11) 98765-2222",
-      endereco: "Rua Esperança, 123 - Apto 45",
-      valorGasto: null,
-      data: "2024-11-02",
-      responsavelId: "dc1",
-      observacoes: "Oração e leitura bíblica realizada. Família agradecida.",
-      criadoEm: new Date(),
-      responsavelNome: "Dc. Carlos Costa",
-    },
-    {
-      id: "3",
-      tipo: "ajuda_financeira",
-      descricao: "Auxílio para pagamento de conta de luz",
-      beneficiario: "Maria das Graças",
-      telefone: "(11) 98765-3333",
-      endereco: "Rua do Comércio, 789",
-      valorGasto: 28000, // R$ 280,00
-      data: "2024-11-03",
-      responsavelId: "dc1",
-      observacoes: "Situação emergencial - conta em atraso",
-      criadoEm: new Date(),
-      responsavelNome: "Dc. Carlos Costa",
-    },
-    {
-      id: "4",
-      tipo: "oracao",
-      descricao: "Reunião de oração com família enlutada",
-      beneficiario: "Família Santos",
-      telefone: "(11) 98765-4444",
-      endereco: "Av. Central, 567",
-      valorGasto: null,
-      data: "2024-11-04",
-      responsavelId: "dc1",
-      observacoes: "Momento de consolo e apoio espiritual",
-      criadoEm: new Date(),
-      responsavelNome: "Dc. Carlos Costa",
-    },
-  ];
+  const { data: acoes = [], isLoading: isLoadingAcoes, isError: isErrorAcoes, refetch: refetchAcoes } = useQuery<AcaoDiaconal[]>({
+    queryKey: ["/api/acoes-diaconais"],
+  });
 
-  const totalGasto = acoes
+  const { data: usuarios = [], isError: isErrorUsuarios, refetch: refetchUsuarios } = useQuery<Usuario[]>({
+    queryKey: ["/api/usuarios"],
+  });
+
+  const form = useForm<AcaoDiaconalFormData>({
+    resolver: zodResolver(acaoDiaconalFormSchema),
+    defaultValues: {
+      tipo: "cesta_basica",
+      descricao: "",
+      beneficiario: "",
+      telefone: null,
+      endereco: null,
+      valorGasto: null,
+      data: new Date().toISOString().split("T")[0],
+      responsavelId: usuario?.id || "",
+      observacoes: null,
+    },
+  });
+
+  const criarAcaoMutation = useMutation({
+    mutationFn: async (dados: AcaoDiaconalFormData) => {
+      const res = await apiRequest("POST", "/api/acoes-diaconais", dados);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/acoes-diaconais"] });
+      toast({
+        title: "Ação registrada",
+        description: "A ação diaconal foi registrada com sucesso",
+      });
+      setDialogNovaAcao(false);
+      form.reset();
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Erro ao registrar ação",
+        description: "Ocorreu um erro ao salvar a ação. Tente novamente.",
+      });
+    },
+  });
+
+  const onSubmit = (dados: AcaoDiaconalFormData) => {
+    criarAcaoMutation.mutate(dados);
+  };
+
+  if (isLoadingAcoes) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isErrorAcoes || isErrorUsuarios) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <p className="text-destructive">Erro ao carregar dados. Tente novamente.</p>
+        <Button onClick={() => { refetchAcoes(); refetchUsuarios(); }} variant="outline">
+          Tentar Novamente
+        </Button>
+      </div>
+    );
+  }
+
+  const acoesComResponsavel: (AcaoDiaconal & { responsavelNome?: string })[] = acoes.map(a => {
+    const responsavel = usuarios.find(u => u.id === a.responsavelId);
+    return {
+      ...a,
+      responsavelNome: responsavel?.nome || `Responsável #${a.responsavelId.substring(0, 8)}`
+    };
+  });
+
+  const totalGasto = acoesComResponsavel
     .filter((a) => a.valorGasto)
-    .reduce((sum, a) => sum + (a.valorGasto || 0), 0);
+    .reduce((sum, a) => sum + (typeof a.valorGasto === 'number' ? a.valorGasto : 0), 0);
 
   const acoesPorTipo = {
-    cesta_basica: acoes.filter((a) => a.tipo === "cesta_basica").length,
-    visita: acoes.filter((a) => a.tipo === "visita").length,
-    ajuda_financeira: acoes.filter((a) => a.tipo === "ajuda_financeira").length,
-    oracao: acoes.filter((a) => a.tipo === "oracao").length,
+    cesta_basica: acoesComResponsavel.filter((a) => a.tipo === "cesta_basica").length,
+    visita: acoesComResponsavel.filter((a) => a.tipo === "visita").length,
+    ajuda_financeira: acoesComResponsavel.filter((a) => a.tipo === "ajuda_financeira").length,
+    oracao: acoesComResponsavel.filter((a) => a.tipo === "oracao").length,
   };
 
   const formatarMoeda = (centavos: number) => {
@@ -154,64 +192,165 @@ export default function Diaconal() {
                   Cadastre uma ação social realizada pela diaconia
                 </DialogDescription>
               </DialogHeader>
-              <form className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tipoAcao">Tipo de Ação *</Label>
-                    <Select>
-                      <SelectTrigger id="tipoAcao">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cesta_basica">Cesta Básica</SelectItem>
-                        <SelectItem value="visita">Visita</SelectItem>
-                        <SelectItem value="oracao">Oração</SelectItem>
-                        <SelectItem value="ajuda_financeira">Ajuda Financeira</SelectItem>
-                        <SelectItem value="outro">Outro</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="tipo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tipo de Ação *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="cesta_basica">Cesta Básica</SelectItem>
+                              <SelectItem value="visita">Visita</SelectItem>
+                              <SelectItem value="oracao">Oração</SelectItem>
+                              <SelectItem value="ajuda_financeira">Ajuda Financeira</SelectItem>
+                              <SelectItem value="outro">Outro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="data"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data *</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="dataAcao">Data *</Label>
-                    <Input id="dataAcao" type="date" defaultValue={new Date().toISOString().split("T")[0]} />
+
+                  <FormField
+                    control={form.control}
+                    name="descricao"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Descrição da Ação *</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Descreva a ação realizada" rows={3} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="beneficiario"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Nome do Beneficiário *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nome completo" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="telefone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telefone</FormLabel>
+                        <FormControl>
+                          <Input placeholder="(11) 98765-4321" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="endereco"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Endereço</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Rua, número, bairro" {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="valorGasto"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Valor Gasto (R$)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0,00"
+                            {...field}
+                            value={field.value === null ? "" : field.value}
+                            onChange={(e) => field.onChange(e.target.value)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="observacoes"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Observações</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Informações adicionais (opcional)" rows={2} {...field} value={field.value || ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="bg-muted/50 p-4 rounded-lg md:col-span-2">
+                    <p className="text-sm text-muted-foreground">
+                      ℹ️ Se informar um valor gasto, o sistema criará automaticamente uma despesa no Módulo Financeiro com centro de custo "Social".
+                    </p>
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="beneficiario">Nome do Beneficiário *</Label>
-                    <Input id="beneficiario" placeholder="Nome completo" />
+
+                  <div className="flex justify-end gap-2 pt-4 md:col-span-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setDialogNovaAcao(false)}
+                      data-testid="button-cancelar-acao"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={criarAcaoMutation.isPending}
+                      data-testid="button-salvar-acao"
+                    >
+                      {criarAcaoMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Registrar Ação
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="telefoneBenef">Telefone</Label>
-                    <Input id="telefoneBenef" placeholder="(11) 98765-4321" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="valorGasto">Valor Gasto (R$)</Label>
-                    <Input id="valorGasto" type="number" step="0.01" placeholder="0,00" />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="enderecoBenef">Endereço</Label>
-                    <Input id="enderecoBenef" placeholder="Rua, número, bairro" />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="descricaoAcao">Descrição da Ação *</Label>
-                    <Textarea id="descricaoAcao" placeholder="Descreva a ação realizada" rows={3} />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="observacoesAcao">Observações</Label>
-                    <Textarea id="observacoesAcao" placeholder="Informações adicionais (opcional)" rows={2} />
-                  </div>
-                </div>
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    ℹ️ Se informar um valor gasto, o sistema criará automaticamente uma despesa no Módulo Financeiro com centro de custo "Social".
-                  </p>
-                </div>
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setDialogNovaAcao(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">Registrar Ação</Button>
-                </div>
-              </form>
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
         )}

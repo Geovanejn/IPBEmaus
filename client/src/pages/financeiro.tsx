@@ -1,13 +1,20 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Wallet,
   Plus,
@@ -18,86 +25,114 @@ import {
   Filter,
   Receipt,
   DollarSign,
+  Loader2,
 } from "lucide-react";
-import { type TransacaoFinanceira } from "@shared/schema";
+import { type TransacaoFinanceira, type Membro, insertTransacaoFinanceiraSchema } from "@shared/schema";
+
+const transacaoFormSchema = insertTransacaoFinanceiraSchema.extend({
+  valor: z.union([z.string(), z.number()]).transform((val) => {
+    if (typeof val === 'string') {
+      const num = parseFloat(val);
+      return Math.round(num * 100); // Converter para centavos
+    }
+    return val;
+  }),
+});
+
+type TransacaoFormData = z.infer<typeof transacaoFormSchema>;
 
 export default function Financeiro() {
-  const { temPermissao } = useAuth();
+  const { usuario, temPermissao } = useAuth();
+  const { toast } = useToast();
   const [dialogNovaTransacao, setDialogNovaTransacao] = useState(false);
-  const [tipoTransacao, setTipoTransacao] = useState<"receita" | "despesa">("receita");
 
   const podeEditar = temPermissao("financeiro", "total");
 
-  // Mock data para demonstração visual
-  const transacoes: (TransacaoFinanceira & { membroNome?: string })[] = [
-    {
-      id: "1",
+  const { data: transacoes = [], isLoading: isLoadingTransacoes, isError: isErrorTransacoes, refetch: refetchTransacoes } = useQuery<TransacaoFinanceira[]>({
+    queryKey: ["/api/transacoes-financeiras"],
+  });
+
+  const { data: membros = [], isError: isErrorMembros, refetch: refetchMembros } = useQuery<Membro[]>({
+    queryKey: ["/api/membros"],
+  });
+
+  const form = useForm<TransacaoFormData>({
+    resolver: zodResolver(transacaoFormSchema),
+    defaultValues: {
       tipo: "receita",
       categoria: "dizimo",
-      descricao: "Dízimo - Maria Silva Santos",
-      valor: 50000, // R$ 500,00
-      data: "2024-11-03",
-      membroId: "1",
-      centroCusto: "geral",
-      metodoPagamento: "transferencia",
-      comprovante: null,
-      observacoes: null,
-      criadoPorId: "user1",
-      criadoEm: new Date(),
-      membroNome: "Maria Silva Santos",
-    },
-    {
-      id: "2",
-      tipo: "receita",
-      categoria: "oferta",
-      descricao: "Oferta de Missões",
-      valor: 120000, // R$ 1.200,00
-      data: "2024-11-03",
-      membroId: null,
-      centroCusto: "missoes",
-      metodoPagamento: "dinheiro",
-      comprovante: null,
-      observacoes: "Culto dominical",
-      criadoPorId: "user1",
-      criadoEm: new Date(),
-    },
-    {
-      id: "3",
-      tipo: "despesa",
-      categoria: "despesa_geral",
-      descricao: "Energia Elétrica - Outubro",
-      valor: 85000, // R$ 850,00
-      data: "2024-11-01",
+      descricao: "",
+      valor: "",
+      data: new Date().toISOString().split("T")[0],
       membroId: null,
       centroCusto: "geral",
-      metodoPagamento: "transferencia",
+      metodoPagamento: null,
       comprovante: null,
       observacoes: null,
-      criadoPorId: "user1",
-      criadoEm: new Date(),
+      criadoPorId: usuario?.id || "",
     },
-    {
-      id: "4",
-      tipo: "despesa",
-      categoria: "despesa_social",
-      descricao: "Cestas Básicas",
-      valor: 45000, // R$ 450,00
-      data: "2024-11-02",
-      membroId: null,
-      centroCusto: "social",
-      metodoPagamento: "dinheiro",
-      comprovante: null,
-      observacoes: "Distribuição diaconal",
-      criadoPorId: "user1",
-      criadoEm: new Date(),
-    },
-  ];
+  });
 
-  const totalReceitas = transacoes
+  const criarTransacaoMutation = useMutation({
+    mutationFn: async (dados: z.infer<typeof transacaoFormSchema>) => {
+      const res = await apiRequest("POST", "/api/transacoes-financeiras", dados);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transacoes-financeiras"] });
+      toast({
+        title: "Transação registrada",
+        description: "A transação foi registrada com sucesso",
+      });
+      setDialogNovaTransacao(false);
+      form.reset();
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Erro ao registrar transação",
+        description: "Ocorreu um erro ao salvar a transação. Tente novamente.",
+      });
+    },
+  });
+
+  const onSubmit = (dados: z.infer<typeof transacaoFormSchema>) => {
+    criarTransacaoMutation.mutate(dados);
+  };
+
+  if (isLoadingTransacoes) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isErrorTransacoes || isErrorMembros) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <p className="text-destructive">Erro ao carregar dados. Tente novamente.</p>
+        <Button onClick={() => { refetchTransacoes(); refetchMembros(); }} variant="outline">
+          Tentar Novamente
+        </Button>
+      </div>
+    );
+  }
+
+  const transacoesComMembroNome: (TransacaoFinanceira & { membroNome?: string })[] = transacoes.map(t => {
+    const membro = membros.find(m => m.id === t.membroId);
+    return {
+      ...t,
+      membroNome: membro?.nome
+    };
+  });
+
+  // Valores já vêm em centavos do backend (integers)
+  const totalReceitas = transacoesComMembroNome
     .filter((t) => t.tipo === "receita")
     .reduce((sum, t) => sum + t.valor, 0);
 
-  const totalDespesas = transacoes
+  const totalDespesas = transacoesComMembroNome
     .filter((t) => t.tipo === "despesa")
     .reduce((sum, t) => sum + t.valor, 0);
 
@@ -150,100 +185,187 @@ export default function Financeiro() {
                 Nova Transação
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Registrar Transação Financeira</DialogTitle>
                 <DialogDescription>
                   Cadastre uma receita ou despesa da igreja
                 </DialogDescription>
               </DialogHeader>
-              <form className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tipoTransacao">Tipo *</Label>
-                    <Select value={tipoTransacao} onValueChange={(v) => setTipoTransacao(v as "receita" | "despesa")}>
-                      <SelectTrigger id="tipoTransacao">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="receita">Receita</SelectItem>
-                        <SelectItem value="despesa">Despesa</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="tipo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tipo *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="receita">Receita</SelectItem>
+                              <SelectItem value="despesa">Despesa</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="valor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Valor (R$) *</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="0,00" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="categoria"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Categoria *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {form.watch("tipo") === "receita" ? (
+                                <>
+                                  <SelectItem value="dizimo">Dízimo</SelectItem>
+                                  <SelectItem value="oferta">Oferta</SelectItem>
+                                </>
+                              ) : (
+                                <>
+                                  <SelectItem value="despesa_geral">Despesa Geral</SelectItem>
+                                  <SelectItem value="despesa_social">Despesa Social</SelectItem>
+                                </>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="data"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data *</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} value={field.value || ""} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="centroCusto"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Centro de Custo</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value || "geral"}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="geral">Geral</SelectItem>
+                              <SelectItem value="social">Social</SelectItem>
+                              <SelectItem value="missoes">Missões</SelectItem>
+                              <SelectItem value="obras">Obras</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="metodoPagamento"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Método de Pagamento</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                              <SelectItem value="transferencia">Transferência</SelectItem>
+                              <SelectItem value="pix">PIX</SelectItem>
+                              <SelectItem value="cartao">Cartão</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="descricao"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Descrição *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Descreva a transação" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="observacoes"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Observações</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Informações adicionais (opcional)" 
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="valor">Valor (R$) *</Label>
-                    <Input id="valor" type="number" step="0.01" placeholder="0,00" />
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button type="button" variant="outline" onClick={() => setDialogNovaTransacao(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={criarTransacaoMutation.isPending} data-testid="button-salvar-transacao">
+                      {criarTransacaoMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        "Salvar Transação"
+                      )}
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="categoria">Categoria *</Label>
-                    <Select>
-                      <SelectTrigger id="categoria">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tipoTransacao === "receita" ? (
-                          <>
-                            <SelectItem value="dizimo">Dízimo</SelectItem>
-                            <SelectItem value="oferta">Oferta</SelectItem>
-                          </>
-                        ) : (
-                          <>
-                            <SelectItem value="despesa_geral">Despesa Geral</SelectItem>
-                            <SelectItem value="despesa_social">Despesa Social</SelectItem>
-                          </>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="data">Data *</Label>
-                    <Input id="data" type="date" defaultValue={new Date().toISOString().split("T")[0]} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="centroCusto">Centro de Custo</Label>
-                    <Select defaultValue="geral">
-                      <SelectTrigger id="centroCusto">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="geral">Geral</SelectItem>
-                        <SelectItem value="social">Social</SelectItem>
-                        <SelectItem value="missoes">Missões</SelectItem>
-                        <SelectItem value="obras">Obras</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="metodoPagamento">Método de Pagamento</Label>
-                    <Select>
-                      <SelectTrigger id="metodoPagamento">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                        <SelectItem value="transferencia">Transferência</SelectItem>
-                        <SelectItem value="pix">PIX</SelectItem>
-                        <SelectItem value="cartao">Cartão</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="descricao">Descrição *</Label>
-                    <Input id="descricao" placeholder="Descreva a transação" />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="observacoes">Observações</Label>
-                    <Input id="observacoes" placeholder="Informações adicionais (opcional)" />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setDialogNovaTransacao(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">Salvar Transação</Button>
-                </div>
-              </form>
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
         )}
@@ -325,7 +447,7 @@ export default function Financeiro() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {transacoes
+                {transacoesComMembroNome
                   .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
                   .map((transacao) => (
                     <div
@@ -392,8 +514,9 @@ export default function Financeiro() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {transacoes
+                {transacoesComMembroNome
                   .filter((t) => t.tipo === "receita")
+                  .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
                   .map((transacao) => (
                     <div
                       key={transacao.id}
@@ -428,8 +551,9 @@ export default function Financeiro() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {transacoes
+                {transacoesComMembroNome
                   .filter((t) => t.tipo === "despesa")
+                  .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
                   .map((transacao) => (
                     <div
                       key={transacao.id}
