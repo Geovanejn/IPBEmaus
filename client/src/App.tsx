@@ -43,6 +43,12 @@ const ROUTES: RouteConfig[] = [
     name: "Dashboard",
   },
   {
+    path: "/painel",
+    component: Dashboard,
+    allowedCargos: ["PASTOR"],
+    name: "Painel",
+  },
+  {
     path: "/pastoral",
     component: Pastoral,
     allowedCargos: ["PASTOR", "PRESBITERO"],
