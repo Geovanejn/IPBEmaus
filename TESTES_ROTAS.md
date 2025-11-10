@@ -86,6 +86,37 @@
 
 ---
 
+### Teste 5: Redirecionamento de /login para Usuários Autenticados (NOVA CORREÇÃO)
+
+**Problema Corrigido:** Usuários autenticados que acessavam `/login` viam "Página Não Encontrada" (404).
+
+**Comportamento Atual:**
+Quando um usuário **já está autenticado** e tenta acessar `/login`:
+- ✅ É automaticamente redirecionado para sua página padrão
+- ✅ NÃO vê página 404
+
+**Como Testar:**
+1. Faça login com qualquer usuário (ex: `diacono@ipbemaus.org` / `123456`)
+2. Após o login, você será levado para `/diaconal` (página padrão do Diácono)
+3. Agora digite manualmente na URL: `/login`
+4. ✅ Você deve ser **redirecionado automaticamente de volta para `/diaconal`**
+5. ✅ Você NÃO deve ver a página "Página Não Encontrada"
+
+**Teste para Todos os Cargos:**
+
+| Cargo | Se acessar /login após autenticado | Será redirecionado para |
+|-------|-----------------------------------|------------------------|
+| PASTOR | `/login` | `/` (Dashboard) |
+| PRESBITERO | `/login` | `/pastoral` |
+| TESOUREIRO | `/login` | `/financeiro` |
+| DIACONO | `/login` | `/diaconal` |
+
+**Observação Importante:**
+- Se você **não está autenticado**, acessar `/login` funciona normalmente (mostra a tela de login)
+- Esta correção só afeta usuários **já autenticados** que tentam voltar para `/login`
+
+---
+
 ## 🎯 Resultados Esperados Resumidos
 
 | Cargo | Rota Padrão | Páginas Permitidas | Menu Visível |
@@ -102,6 +133,8 @@
 1. **Rotas Inexistentes:** URLs que não existem no sistema (ex: `/teste`) devem mostrar a página 404, NÃO redirecionar.
 
 2. **Rotas Não Autorizadas:** URLs que existem mas o usuário não tem permissão devem REDIRECIONAR automaticamente para a página padrão do cargo.
+
+3. **Rota /login para Usuários Autenticados:** Usuários já autenticados que tentam acessar `/login` são REDIRECIONADOS para sua página padrão (não veem 404).
 
 3. **Menu Condicional:** O menu dropdown só aparece quando o usuário tem acesso a mais de uma página.
 

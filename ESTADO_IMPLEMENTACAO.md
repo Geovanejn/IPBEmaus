@@ -39,6 +39,39 @@ function ProtectedRoute({ component, allowedCargos }) {
 
 ---
 
+### 1.1. Redirecionamento de /login para Usuários Autenticados (CORREÇÃO ADICIONAL - 10/11/2025)
+**Problema:** Usuários autenticados que tentavam acessar `/login` viam "Página Não Encontrada" (404), pois a rota `/login` não estava definida no Switch do Router para usuários autenticados.
+
+**Solução Implementada:**
+- Adicionada rota `/login` no Switch do Router (seção autenticada) que redireciona automaticamente para `getRotaPadrão()`
+- Agora usuários autenticados que acessam `/login` são redirecionados para sua página padrão ao invés de ver 404
+- Usuários não autenticados continuam vendo a tela de login normalmente
+
+**Código Adicionado:**
+```typescript
+<Switch>
+  {/* Redireciona usuários autenticados que tentam acessar /login */}
+  <Route path="/login">
+    <Redirect to={getRotaPadrão()} />
+  </Route>
+  
+  {ROUTES.map((route) => (...))}
+  <Route component={NotFound} />
+</Switch>
+```
+
+**Comportamento por Cargo:**
+| Cargo | Ao acessar /login autenticado | Redireciona para |
+|-------|------------------------------|------------------|
+| PASTOR | `/login` → | `/` (Dashboard) |
+| PRESBITERO | `/login` → | `/pastoral` |
+| TESOUREIRO | `/login` → | `/financeiro` |
+| DIACONO | `/login` → | `/diaconal` |
+
+**Validação:** Architect aprovou - nenhum loop de redirecionamento, nenhum problema de segurança. Ver Teste 5 em `TESTES_ROTAS.md`.
+
+---
+
 ### 2. Navegação do Diácono e Tesoureiro
 **Problema:** Ao fazer login como Diácono ou Tesoureiro, a navegação para "/diaconal" e "/financeiro" estava funcionando, mas ao clicar em "Voltar ao Início" em uma página não encontrada, o sistema redirecionava para "/" (Dashboard), rota que eles não têm permissão de acessar.
 
