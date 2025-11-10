@@ -178,14 +178,21 @@ O sistema possui 4 cargos com permissões específicas:
 ## Estado Atual
 ✅ Interface visual completa de todos os 5 módulos
 ✅ Sistema de autenticação por cargo
-✅ Controle de permissões implementado
-✅ Dados mockados para demonstração
+✅ Controle de permissões implementado com navegação baseada em papel
+✅ PostgreSQL configurado com Drizzle ORM
+✅ Três módulos 100% funcionais: Pastoral, Financeiro, Diaconal
 ✅ Design profissional e moderno
 ✅ Totalmente em português do Brasil
-⏳ Backend com persistência real (próxima fase)
+⏳ Módulos Boletim e Atas (parcialmente implementados)
 ⏳ Integração com storage para PDFs (próxima fase)
 ⏳ Envio de e-mails via Resend (próxima fase)
 ⏳ Integração Power BI (próxima fase)
+
+## Mudanças Recentes (Nov 10, 2025)
+✅ **Correção Crítica de Navegação**: Usuários Tesoureiro e Diácono agora redirecionam corretamente para suas rotas padrão (`/financeiro` e `/diaconal`) ao invés de tentar acessar o Dashboard (`/`)
+✅ **Alinhamento de Rotas Backend/Frontend**: Rotas do módulo financeiro padronizadas como `/api/transacoes-financeiras` em todo o sistema
+✅ **Correção de Tipagem**: Formulário financeiro corrigido para evitar erros TypeScript no campo valor
+✅ **Documentação Completa**: Criado `ESTADO_IMPLEMENTACAO.md` detalhando funcionalidades implementadas vs. planejadas
 
 ## Próximos Passos
 1. Implementação de PostgreSQL para persistência
