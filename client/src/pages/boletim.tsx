@@ -79,7 +79,7 @@ export default function BoletimDominical() {
       saf: "",
       eventos: [],
       aniversariosCasamento: null,
-      pedidosOracao: null,
+      pedidosOracao: [],
       relatorioEbd: null,
       liturgia: null,
       textoMensagem: "",
@@ -213,12 +213,21 @@ export default function BoletimDominical() {
   const resetForm = () => {
     form.reset({
       data: "",
-      titulo: "",
-      versiculoSemana: "",
-      devocional: "",
+      numeroEdicao: 1,
+      anoEdicao: new Date().getFullYear(),
+      tituloMensagem: "",
+      ofertaDia: "",
+      saf: "",
       eventos: [],
+      aniversariosCasamento: null,
       pedidosOracao: [],
+      relatorioEbd: null,
+      liturgia: null,
+      textoMensagem: "",
+      devocional: "",
       avisos: [],
+      semanaOracao: null,
+      aniversariosMembros: null,
       publicado: false,
       pdfUrl: null,
       criadoPorId: usuario?.id || "",
@@ -231,9 +240,9 @@ export default function BoletimDominical() {
   const onSubmit = (data: BoletimFormData) => {
     const boletimData = {
       ...data,
-      eventos: eventos.length > 0 ? eventos : null,
-      pedidosOracao: pedidos.length > 0 ? pedidos : null,
-      avisos: avisos.length > 0 ? avisos : null,
+      eventos: eventos.length > 0 ? eventos : [],
+      pedidosOracao: pedidos.length > 0 ? pedidos : [],
+      avisos: avisos.length > 0 ? avisos : [],
       criadoPorId: usuario?.id || "",
     };
     
@@ -346,7 +355,7 @@ export default function BoletimDominical() {
               
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
                       control={form.control}
                       name="data"
@@ -366,15 +375,34 @@ export default function BoletimDominical() {
                     />
                     <FormField
                       control={form.control}
-                      name="titulo"
+                      name="numeroEdicao"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Título *</FormLabel>
+                          <FormLabel>Nº Edição *</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="Ex: Culto de Celebração"
+                              type="number"
                               {...field}
-                              data-testid="input-titulo-boletim"
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              data-testid="input-numero-edicao"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="anoEdicao"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Ano *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
+                              data-testid="input-ano-edicao"
                             />
                           </FormControl>
                           <FormMessage />
@@ -385,17 +413,34 @@ export default function BoletimDominical() {
 
                   <FormField
                     control={form.control}
-                    name="versiculoSemana"
+                    name="tituloMensagem"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Versículo da Semana</FormLabel>
+                        <FormLabel>Título da Mensagem *</FormLabel>
                         <FormControl>
-                          <Textarea
-                            placeholder="Digite o versículo bíblico com a referência"
-                            rows={2}
+                          <Input
+                            placeholder="Ex: A oração e o avanço missionário"
+                            {...field}
+                            data-testid="input-titulo-mensagem"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="textoMensagem"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Texto Bíblico</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ex: Efésios 6.10-20"
                             {...field}
                             value={field.value || ""}
-                            data-testid="input-versiculo"
+                            data-testid="input-texto-mensagem"
                           />
                         </FormControl>
                         <FormMessage />
@@ -642,7 +687,8 @@ export default function BoletimDominical() {
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <CardTitle className="text-xl">{boletim.titulo}</CardTitle>
+                      <CardTitle className="text-xl">{boletim.tituloMensagem}</CardTitle>
+                      <Badge variant="outline">Edição nº {boletim.numeroEdicao} - {boletim.anoEdicao}</Badge>
                       <Badge variant={boletim.publicado ? "default" : "secondary"} data-testid={`badge-status-${boletim.id}`}>
                         {boletim.publicado ? "Publicado" : "Rascunho"}
                       </Badge>
@@ -711,20 +757,35 @@ export default function BoletimDominical() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {boletim.versiculoSemana && (
+                {boletim.textoMensagem && (
                   <div className="p-4 bg-primary/5 rounded-lg border-l-4 border-primary">
-                    <p className="text-sm italic">{boletim.versiculoSemana}</p>
+                    <p className="text-sm font-medium">{boletim.tituloMensagem}</p>
+                    <p className="text-sm italic text-muted-foreground">{boletim.textoMensagem}</p>
                   </div>
                 )}
 
                 {boletim.devocional && (
                   <div>
                     <h4 className="font-medium text-sm mb-2">Mensagem Devocional</h4>
-                    <p className="text-sm text-muted-foreground">{boletim.devocional}</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{boletim.devocional}</p>
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {boletim.ofertaDia && (
+                    <div>
+                      <h4 className="font-medium text-sm mb-2">Oferta do Dia</h4>
+                      <p className="text-sm text-muted-foreground">{boletim.ofertaDia}</p>
+                    </div>
+                  )}
+                  
+                  {boletim.saf && (
+                    <div>
+                      <h4 className="font-medium text-sm mb-2">SAF</h4>
+                      <p className="text-sm text-muted-foreground">{boletim.saf}</p>
+                    </div>
+                  )}
+                  
                   {boletim.eventos && boletim.eventos.length > 0 && (
                     <div>
                       <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
@@ -734,17 +795,6 @@ export default function BoletimDominical() {
                       <ul className="space-y-1">
                         {boletim.eventos.map((evento, idx) => (
                           <li key={idx} className="text-sm text-muted-foreground">• {evento}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {boletim.pedidosOracao && boletim.pedidosOracao.length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-sm mb-2">Pedidos de Oração</h4>
-                      <ul className="space-y-1">
-                        {boletim.pedidosOracao.map((pedido, idx) => (
-                          <li key={idx} className="text-sm text-muted-foreground">• {pedido}</li>
                         ))}
                       </ul>
                     </div>

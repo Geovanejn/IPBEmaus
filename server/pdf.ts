@@ -39,13 +39,14 @@ export async function gerarPDFBoletim(
       day: 'numeric'
     });
     doc.fontSize(12).text(dataFormatada, { align: 'center' });
+    doc.fontSize(10).text(`Edição nº ${boletim.numeroEdicao} - Ano ${boletim.anoEdicao}`, { align: 'center' });
     doc.moveDown(2);
 
-    if (boletim.versiculoSemana) {
-      doc.fontSize(14).font('Helvetica-Bold').text('Versículo da Semana');
-      doc.fontSize(11).font('Helvetica-Oblique').text(boletim.versiculoSemana);
-      doc.moveDown(1.5);
+    doc.fontSize(16).font('Helvetica-Bold').text(boletim.tituloMensagem, { align: 'center' });
+    if (boletim.textoMensagem) {
+      doc.fontSize(12).font('Helvetica-Oblique').text(boletim.textoMensagem, { align: 'center' });
     }
+    doc.moveDown(1.5);
 
     if (boletim.devocional) {
       doc.fontSize(14).font('Helvetica-Bold').text('Devocional');
@@ -80,11 +81,21 @@ export async function gerarPDFBoletim(
       doc.moveDown(1.5);
     }
 
-    if (boletim.pedidosOracao && boletim.pedidosOracao.length > 0) {
+    if (boletim.ofertaDia) {
+      doc.fontSize(14).font('Helvetica-Bold').text('Oferta do Dia');
+      doc.fontSize(11).font('Helvetica').text(boletim.ofertaDia);
+      doc.moveDown(1.5);
+    }
+
+    if (boletim.saf) {
+      doc.fontSize(14).font('Helvetica-Bold').text('SAF');
+      doc.fontSize(11).font('Helvetica').text(boletim.saf);
+      doc.moveDown(1.5);
+    }
+
+    if (boletim.pedidosOracao) {
       doc.fontSize(14).font('Helvetica-Bold').text('Pedidos de Oração');
-      boletim.pedidosOracao.forEach((pedido: string) => {
-        doc.fontSize(11).font('Helvetica').text(`• ${pedido}`);
-      });
+      doc.fontSize(10).font('Helvetica').text('(Estruturado em categorias)');
       doc.moveDown(1.5);
     }
 

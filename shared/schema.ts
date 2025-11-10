@@ -150,8 +150,8 @@ export const boletins = pgTable("boletins", {
   aniversariosMembros: jsonb("aniversarios_membros"), // [{nome, data, tipo}] - será populado automaticamente
   aniversariosCasamento: jsonb("aniversarios_casamento"), // [{nomes, data, bodas}]
   
-  // Pedidos de Oração (categorizados)
-  pedidosOracao: jsonb("pedidos_oracao"), // { conversao: [], direcao: [], igreja: [], emprego: [], saude: [], outros: [] }
+  // Pedidos de Oração (será estruturado na FASE 2)
+  pedidosOracao: text("pedidos_oracao").array(),
   
   // Relatório EBD
   relatorioEbd: jsonb("relatorio_ebd"), // { matriculados, domingos: [{data, presentes, ausentes, visitantes, biblias}] }
