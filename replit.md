@@ -180,19 +180,21 @@ O sistema possui 4 cargos com permissões específicas:
 ✅ Sistema de autenticação por cargo
 ✅ Controle de permissões implementado com navegação baseada em papel
 ✅ PostgreSQL configurado com Drizzle ORM
-✅ Três módulos 100% funcionais: Pastoral, Financeiro, Diaconal
+✅ Cinco módulos 100% funcionais: Pastoral, Financeiro, Diaconal, Boletim, Atas
+✅ Sistema completo de geração de PDFs (backend + frontend)
+✅ Upload de arquivos (fotos, comprovantes) implementado
 ✅ Design profissional e moderno
 ✅ Totalmente em português do Brasil
-⏳ Módulos Boletim e Atas (parcialmente implementados)
-⏳ Integração com storage para PDFs (próxima fase)
 ⏳ Envio de e-mails via Resend (próxima fase)
 ⏳ Integração Power BI (próxima fase)
+⏳ Storage em nuvem (Cloudflare R2 / Supabase) - opcional
 
 ## Mudanças Recentes (Nov 10, 2025)
-✅ **Correção Crítica de Navegação**: Usuários Tesoureiro e Diácono agora redirecionam corretamente para suas rotas padrão (`/financeiro` e `/diaconal`) ao invés de tentar acessar o Dashboard (`/`)
-✅ **Alinhamento de Rotas Backend/Frontend**: Rotas do módulo financeiro padronizadas como `/api/transacoes-financeiras` em todo o sistema
-✅ **Correção de Tipagem**: Formulário financeiro corrigido para evitar erros TypeScript no campo valor
-✅ **Documentação Completa**: Criado `ESTADO_IMPLEMENTACAO.md` detalhando funcionalidades implementadas vs. planejadas
+✅ **Interface de Geração de PDFs Completa**: Implementados botões "Gerar PDF" e "Baixar PDF" nos módulos Boletim e Atas com estados de loading e toasts de feedback
+✅ **Sistema de Upload de Arquivos**: Upload de fotos de membros e comprovantes financeiros implementado com validação de tipos e preview
+✅ **Correção Crítica de Navegação**: Usuários Tesoureiro e Diácono agora redirecionam corretamente para suas rotas padrão
+✅ **Alinhamento de Rotas Backend/Frontend**: Rotas do módulo financeiro padronizadas como `/api/transacoes-financeiras`
+✅ **Documentação Completa**: `ESTADO_IMPLEMENTACAO.md` atualizado com todas as funcionalidades (~90% implementado)
 
 ## Próximos Passos
 1. Implementação de PostgreSQL para persistência
