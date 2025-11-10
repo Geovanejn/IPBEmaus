@@ -62,7 +62,7 @@ export default function Financeiro() {
       tipo: "receita",
       categoria: "dizimo",
       descricao: "",
-      valor: "",
+      valor: 0,
       data: new Date().toISOString().split("T")[0],
       membroId: null,
       centroCusto: "geral",

@@ -1,9 +1,18 @@
-import { Link } from "wouter";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Home, FileQuestion } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function NotFound() {
+  const { usuario, getRotaPadrão } = useAuth();
+  const [, setLocation] = useLocation();
+
+  const handleVoltar = () => {
+    const rotaPadrao = usuario ? getRotaPadrão() : "/login";
+    setLocation(rotaPadrao);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
       <Card className="w-full max-w-md">
@@ -19,12 +28,14 @@ export default function NotFound() {
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center">
-          <Link href="/">
-            <Button className="w-full" data-testid="button-voltar-inicio">
-              <Home className="w-4 h-4 mr-2" />
-              Voltar ao Início
-            </Button>
-          </Link>
+          <Button 
+            className="w-full" 
+            onClick={handleVoltar}
+            data-testid="button-voltar-inicio"
+          >
+            <Home className="w-4 h-4 mr-2" />
+            Voltar ao Início
+          </Button>
         </CardContent>
       </Card>
     </div>
