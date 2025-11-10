@@ -161,14 +161,14 @@ export const aniversariosCasamentoSchema = z.object({
 
 export const domingoEbdSchema = z.object({
   data: z.string(),
-  presentes: z.number(),
-  ausentes: z.number(),
-  visitantes: z.number(),
-  biblias: z.number(),
+  presentes: z.coerce.number(),
+  ausentes: z.coerce.number(),
+  visitantes: z.coerce.number(),
+  biblias: z.coerce.number(),
 });
 
 export const relatorioEbdSchema = z.object({
-  matriculados: z.number(),
+  matriculados: z.coerce.number(),
   domingos: z.array(domingoEbdSchema),
 });
 
