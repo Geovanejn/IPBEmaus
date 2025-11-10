@@ -1,6 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { upload } from "./upload";
+import { gerarPDFBoletim, gerarPDFAta } from "./pdf";
+import multer from "multer";
 import {
   insertUsuarioSchema,
   insertMembroSchema,
@@ -333,6 +336,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/boletins/:id/gerar-pdf", async (req, res) => {
+    try {
+      const boletim = await storage.getBoletim(req.params.id);
+      if (!boletim) {
+        return res.status(404).json({ message: "Boletim não encontrado" });
+      }
+
+      const membros = await storage.getMembros();
+      const visitantes = await storage.getVisitantes();
+
+      const dataBoletim = new Date(boletim.data + 'T12:00:00');
+      const inicioSemana = new Date(dataBoletim);
+      inicioSemana.setDate(dataBoletim.getDate() - 7);
+      const fimSemana = new Date(dataBoletim);
+      fimSemana.setDate(dataBoletim.getDate() + 7);
+
+      const aniversariantesSemana = membros.filter((m) => {
+        if (!m.dataNascimento) return false;
+        const dataNasc = new Date(m.dataNascimento + 'T12:00:00');
+        const mesNasc = dataNasc.getMonth();
+        const diaNasc = dataNasc.getDate();
+        const anoAtual = dataBoletim.getFullYear();
+        const dataAniversario = new Date(anoAtual, mesNasc, diaNasc);
+        return dataAniversario >= inicioSemana && dataAniversario <= fimSemana;
+      });
+
+      const visitantesRecentes = visitantes.filter((v) => {
+        const dataVisita = new Date(v.dataVisita + 'T12:00:00');
+        const diasAtras = 7;
+        const dataLimite = new Date(dataBoletim);
+        dataLimite.setDate(dataBoletim.getDate() - diasAtras);
+        return dataVisita >= dataLimite && dataVisita <= dataBoletim;
+      });
+
+      const pdfUrl = await gerarPDFBoletim(boletim, aniversariantesSemana, visitantesRecentes);
+
+      await storage.atualizarBoletim(req.params.id, { pdfUrl });
+
+      res.json({ pdfUrl, message: "PDF gerado com sucesso" });
+    } catch (error: any) {
+      console.error("Erro ao gerar PDF do boletim:", error);
+      res.status(500).json({ message: "Erro ao gerar PDF do boletim" });
+    }
+  });
+
   // ==================== REUNIÕES ====================
   app.get("/api/reunioes", async (req, res) => {
     try {
@@ -408,6 +456,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ message: "Erro ao aprovar ata" });
     }
+  });
+
+  app.post("/api/atas/:id/gerar-pdf", async (req, res) => {
+    try {
+      const ata = await storage.getAta(req.params.id);
+      if (!ata) {
+        return res.status(404).json({ message: "Ata não encontrada" });
+      }
+
+      const reuniao = await storage.getReuniao(ata.reuniaoId);
+      if (!reuniao) {
+        return res.status(404).json({ message: "Reunião não encontrada" });
+      }
+
+      const usuarios = await storage.getUsuarios();
+      const secretario = usuarios.find(u => u.id === ata.secretarioId);
+      if (!secretario) {
+        return res.status(404).json({ message: "Secretário não encontrado" });
+      }
+
+      const pdfUrl = await gerarPDFAta(ata, reuniao, { nome: secretario.nome });
+
+      await storage.atualizarAta(ata.id, { pdfUrl });
+
+      res.json({ pdfUrl, message: "PDF gerado com sucesso" });
+    } catch (error: any) {
+      console.error("Erro ao gerar PDF da ata:", error);
+      res.status(500).json({ message: "Erro ao gerar PDF da ata" });
+    }
+  });
+
+  // ==================== UPLOAD DE ARQUIVOS ====================
+  app.post("/api/upload", (req, res) => {
+    upload.single('file')(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ 
+            message: 'Arquivo muito grande. Tamanho máximo: 5MB' 
+          });
+        }
+        if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+          return res.status(400).json({ 
+            message: 'Campo de arquivo inesperado' 
+          });
+        }
+        return res.status(400).json({ message: err.message });
+      } else if (err) {
+        return res.status(400).json({ message: err.message });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({ message: 'Nenhum arquivo enviado' });
+      }
+      
+      const fileUrl = `/uploads/${req.query.type || 'outros'}/${req.file.filename}`;
+      res.json({ 
+        message: 'Arquivo enviado com sucesso',
+        filename: req.file.filename,
+        url: fileUrl,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
+    });
   });
 
   const httpServer = createServer(app);

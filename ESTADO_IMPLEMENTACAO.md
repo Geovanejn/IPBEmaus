@@ -369,13 +369,82 @@ function ProtectedRoute({ component, allowedCargos }) {
 
 ---
 
-## ❌ Funcionalidades Não Implementadas
+## ✅ Funcionalidades Recém-Implementadas (Nov 10, 2025 - Sessão 2)
 
-### 1. Storage de Arquivos (Cloudflare R2 / Supabase)
-- [ ] Upload de documentos
-- [ ] Armazenamento de recibos
-- [ ] Armazenamento de comprovantes
-- [ ] Geração e armazenamento de PDFs
+### 1. Sistema de Upload de Arquivos
+**Status:** ✅ Implementado e Seguro
+
+#### Backend
+- [x] Módulo `server/upload.ts` com multer configurado
+- [x] Criação automática de pastas (comprovantes, fotos, pdfs, outros)
+- [x] Validação de MIME types por contexto (foto, comprovante, pdf)
+- [x] Sanitização de nomes de arquivos
+- [x] Limite de tamanho: 5MB
+- [x] Rota POST `/api/upload?type=...`
+- [x] Servidor de arquivos estáticos em `/uploads`
+
+#### Frontend
+- [x] Componente `FileUpload` reutilizável
+- [x] Preview de imagens
+- [x] Feedback visual (loading, erros)
+- [x] Upload com validação de tipo
+- [x] Remoção de arquivo com valor null correto
+
+#### Segurança
+- [x] Validação de MIME type rigorosa (não apenas extensão)
+- [x] Tipos permitidos restritos por contexto
+- [x] Sanitização de nomes de arquivos
+- [x] Pastas criadas automaticamente ao iniciar servidor
+
+### 2. Geração de PDFs
+**Status:** ✅ Implementado
+
+#### Backend
+- [x] Módulo `server/pdf.ts` com pdfkit
+- [x] Função `gerarPDFBoletim()` completa
+  - Inclui: versículo, devocional, eventos, aniversariantes, visitantes, pedidos, avisos
+  - Layout profissional com fonte Helvetica
+  - Formatação de datas em pt-BR
+- [x] Função `gerarPDFAta()` completa
+  - Inclui: tipo de reunião, data, local, participantes, conteúdo
+  - Indicador de aprovação e bloqueio
+  - Informações do secretário
+- [x] Rota POST `/api/boletins/:id/gerar-pdf`
+  - Busca aniversariantes da semana automaticamente
+  - Busca visitantes recentes (7 dias)
+  - Atualiza boletim com pdfUrl
+- [x] Rota POST `/api/atas/:id/gerar-pdf`
+  - Busca reunião vinculada
+  - Busca secretário
+  - Atualiza ata com pdfUrl
+- [x] Método `storage.atualizarAta()` adicionado
+
+### 3. Integrações no Frontend
+- [x] Upload de comprovante no módulo Financeiro
+  - Campo "Comprovante (Opcional)" no formulário
+  - Aceita imagens e PDFs
+  - Preview funcional
+- [x] Upload de foto no módulo Pastoral
+  - Campo "Foto do Membro (Opcional)" no formulário
+  - Apenas imagens aceitas
+  - Preview funcional
+- [x] Campo "Data da Profissão de Fé" adicionado (estava faltando)
+
+## ❌ Funcionalidades Ainda Não Implementadas
+
+### 1. Interface de Geração de PDFs (Frontend)
+- [ ] Botão "Gerar PDF" na lista de boletins
+- [ ] Botão "Gerar PDF" na lista de atas
+- [ ] Indicador de loading durante geração
+- [ ] Link para download/visualização do PDF gerado
+- [ ] Preview do PDF antes de gerar
+
+### 2. Storage de Arquivos em Nuvem (Cloudflare R2 / Supabase)
+- [x] Upload de documentos (local)
+- [x] Armazenamento de recibos (local)
+- [x] Armazenamento de comprovantes (local)
+- [x] Geração e armazenamento de PDFs (local)
+- [ ] Migração para storage em nuvem (opcional)
 
 ### 2. Sistema de E-mail (Resend)
 - [ ] Envio de boletins por email

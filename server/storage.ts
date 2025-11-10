@@ -472,6 +472,14 @@ export class DatabaseStorage implements IStorage {
     }).where(eq(schema.atas.id, id)).returning();
     return result[0];
   }
+
+  async atualizarAta(id: string, dados: Partial<Ata>): Promise<Ata | undefined> {
+    const result = await db.update(schema.atas)
+      .set(dados)
+      .where(eq(schema.atas.id, id))
+      .returning();
+    return result[0];
+  }
 }
 
 export const storage = new DatabaseStorage();

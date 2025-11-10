@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { FileUpload } from "@/components/FileUpload";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -342,6 +343,25 @@ export default function Financeiro() {
                               placeholder="Informações adicionais (opcional)" 
                               {...field}
                               value={field.value || ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="comprovante"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Comprovante (Opcional)</FormLabel>
+                          <FormControl>
+                            <FileUpload
+                              type="comprovante"
+                              accept="image/*,application/pdf"
+                              currentFile={field.value || ""}
+                              label="Anexar comprovante"
+                              onUploadComplete={(url) => field.onChange(url)}
                             />
                           </FormControl>
                           <FormMessage />

@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { FileUpload } from "@/components/FileUpload";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -405,6 +406,38 @@ export default function Pastoral() {
                             <FormLabel>Data do Batismo</FormLabel>
                             <FormControl>
                               <Input type="date" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formMembro.control}
+                        name="dataProfissaoFe"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Data da Profissão de Fé</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formMembro.control}
+                        name="fotoUrl"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Foto do Membro (Opcional)</FormLabel>
+                            <FormControl>
+                              <FileUpload
+                                type="foto"
+                                accept="image/*"
+                                currentFile={field.value || ""}
+                                label="Selecionar foto"
+                                onUploadComplete={(url) => field.onChange(url)}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
