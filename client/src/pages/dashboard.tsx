@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import type { Membro, Visitante, TransacaoFinanceira, AcaoDiaconal } from "@shared/schema";
 import {
   Users,
   Wallet,
@@ -20,30 +22,59 @@ export default function Dashboard() {
   const { usuario, temPermissao } = useAuth();
   const [, setLocation] = useLocation();
 
+  const { data: membros = [] } = useQuery<Membro[]>({ queryKey: ["/api/membros"], enabled: !!usuario && temPermissao("pastoral") });
+  const { data: visitantes = [] } = useQuery<Visitante[]>({ queryKey: ["/api/visitantes"], enabled: !!usuario && temPermissao("pastoral") });
+  const { data: transacoes = [] } = useQuery<TransacaoFinanceira[]>({ queryKey: ["/api/transacoes-financeiras"], enabled: !!usuario && temPermissao("financeiro") });
+  const { data: acoesDiaconais = [] } = useQuery<AcaoDiaconal[]>({ queryKey: ["/api/acoes-diaconais"], enabled: !!usuario && temPermissao("diaconal") });
+
   if (!usuario) return null;
+
+  const membrosAtivos = membros.filter(m => m.status === "ATIVO").length;
+  
+  const mesAtual = new Date().getMonth();
+  const anoAtual = new Date().getFullYear();
+  
+  const transacoesEsteMes = transacoes.filter(t => {
+    const data = new Date(t.data);
+    return data.getMonth() === mesAtual && data.getFullYear() === anoAtual;
+  });
+  
+  const receitaEsteMes = transacoesEsteMes
+    .filter(t => t.tipo === "RECEITA")
+    .reduce((sum, t) => sum + parseFloat(t.valor.toString()), 0);
+  
+  const visitantesEsteMes = visitantes.filter(v => {
+    const data = new Date(v.dataVisita);
+    return data.getMonth() === mesAtual && data.getFullYear() === anoAtual;
+  }).length;
+  
+  const acoesDiaconaisEsteMes = acoesDiaconais.filter(a => {
+    const data = new Date(a.dataRealizacao);
+    return data.getMonth() === mesAtual && data.getFullYear() === anoAtual;
+  }).length;
 
   const stats = [
     {
       titulo: "Membros Ativos",
-      valor: "347",
+      valor: membrosAtivos.toString(),
       icone: Users,
-      tendencia: "+12 este mês",
+      tendencia: `${membros.length} total`,
       cor: "text-blue-600",
       bgCor: "bg-blue-50 dark:bg-blue-950",
       modulo: "pastoral" as const,
     },
     {
       titulo: "Dízimos e Ofertas",
-      valor: "R$ 28.450",
+      valor: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receitaEsteMes),
       icone: DollarSign,
-      tendencia: "+8% este mês",
+      tendencia: "Este mês",
       cor: "text-green-600",
       bgCor: "bg-green-50 dark:bg-green-950",
       modulo: "financeiro" as const,
     },
     {
       titulo: "Visitantes",
-      valor: "23",
+      valor: visitantesEsteMes.toString(),
       icone: UserPlus,
       tendencia: "Este mês",
       cor: "text-purple-600",
@@ -52,7 +83,7 @@ export default function Dashboard() {
     },
     {
       titulo: "Ações Diaconais",
-      valor: "15",
+      valor: acoesDiaconaisEsteMes.toString(),
       icone: Heart,
       tendencia: "Este mês",
       cor: "text-rose-600",
@@ -103,11 +134,28 @@ export default function Dashboard() {
     { titulo: "Grupo de Oração", data: "Quarta, 20:00", tipo: "oracao" },
   ];
 
-  const aniversariantes = [
-    { nome: "Maria Silva", data: "Hoje" },
-    { nome: "João Santos", data: "Amanhã" },
-    { nome: "Ana Costa", data: "15/11" },
-  ];
+  const aniversariantes = membros
+    .filter(m => m.dataNascimento)
+    .map(m => {
+      const hoje = new Date();
+      const nascimento = new Date(m.dataNascimento!);
+      const proximoAniversario = new Date(hoje.getFullYear(), nascimento.getMonth(), nascimento.getDate());
+      
+      if (proximoAniversario < hoje) {
+        proximoAniversario.setFullYear(hoje.getFullYear() + 1);
+      }
+      
+      const diasAteAniversario = Math.floor((proximoAniversario.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+      
+      let dataTexto;
+      if (diasAteAniversario === 0) dataTexto = "Hoje";
+      else if (diasAteAniversario === 1) dataTexto = "Amanhã";
+      else dataTexto = proximoAniversario.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+      
+      return { nome: m.nome, data: dataTexto, dias: diasAteAniversario };
+    })
+    .sort((a, b) => a.dias - b.dias)
+    .slice(0, 5);
 
   const cargoLabels = {
     PASTOR: "Pastor",
@@ -123,9 +171,10 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold" data-testid="text-dashboard-titulo">
           Bem-vindo, {usuario.nome.split(" ")[0]}!
         </h1>
-        <p className="text-muted-foreground mt-1">
-          Cargo: <Badge variant="secondary">{cargoLabels[usuario.cargo]}</Badge>
-        </p>
+        <div className="text-muted-foreground mt-1 flex items-center gap-2">
+          <span>Cargo:</span>
+          <Badge variant="secondary">{cargoLabels[usuario.cargo]}</Badge>
+        </div>
       </div>
 
       {/* Cards de Estatísticas */}
