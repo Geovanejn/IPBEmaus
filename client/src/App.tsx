@@ -25,6 +25,8 @@ function ProtectedRoute({ component: Component }: { component: () => JSX.Element
   return <Component />;
 }
 
+ProtectedRoute.displayName = "ProtectedRoute";
+
 function Router() {
   const { usuario } = useAuth();
 
