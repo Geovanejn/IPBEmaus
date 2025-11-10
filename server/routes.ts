@@ -489,7 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== UPLOAD DE ARQUIVOS ====================
   app.post("/api/upload", (req, res) => {
-    upload.single('file')(req, res, (err) => {
+    upload.single('file')(req, res, async (err) => {
       if (err instanceof multer.MulterError) {
         if (err.code === 'LIMIT_FILE_SIZE') {
           return res.status(400).json({ 
@@ -508,6 +508,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!req.file) {
         return res.status(400).json({ message: 'Nenhum arquivo enviado' });
+      }
+      
+      try {
+        const { fileTypeFromFile } = await import('file-type');
+        const detectedType = await fileTypeFromFile(req.file.path);
+        
+        const allowedMimeTypes: Record<string, string[]> = {
+          'foto': ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+          'comprovante': ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'],
+          'pdf': ['application/pdf'],
+        };
+        
+        const typeParam = req.query.type as string;
+        const allowed = allowedMimeTypes[typeParam] || allowedMimeTypes['comprovante'];
+        
+        if (!detectedType || !allowed.includes(detectedType.mime)) {
+          fs.unlinkSync(req.file.path);
+          return res.status(400).json({ 
+            message: `Tipo de arquivo inválido. Esperado: ${allowed.join(', ')}, mas recebido: ${detectedType?.mime || 'desconhecido'}` 
+          });
+        }
+      } catch (validationError) {
+        if (req.file?.path) {
+          fs.unlinkSync(req.file.path);
+        }
+        console.error('Erro ao validar arquivo:', validationError);
+        return res.status(500).json({ message: 'Erro ao validar arquivo' });
       }
       
       const fileUrl = `/uploads/${req.query.type || 'outros'}/${req.file.filename}`;
