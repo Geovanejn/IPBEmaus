@@ -176,6 +176,26 @@ export default function SecretariaAtas() {
     },
   });
 
+  const gerarPdfAtaMutation = useMutation({
+    mutationFn: async (ataId: string) => {
+      return await apiRequest("POST", `/api/atas/${ataId}/gerar-pdf`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/atas"] });
+      toast({
+        title: "PDF gerado com sucesso!",
+        description: "A ata foi convertida em PDF e está disponível para download.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao gerar PDF",
+        description: error.message || "Não foi possível gerar o PDF. Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const adicionarParticipante = () => {
     if (novoParticipante.trim()) {
       setParticipantes([...participantes, novoParticipante.trim()]);
@@ -725,9 +745,32 @@ export default function SecretariaAtas() {
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
                               {reuniao.ata?.pdfUrl && (
-                                <Button variant="outline" size="sm" data-testid={`button-baixar-pdf-ata-${reuniao.id}`}>
-                                  <FileDown className="w-4 h-4 mr-2" />
-                                  Baixar PDF
+                                <Button variant="outline" size="sm" asChild data-testid={`link-pdf-ata-${reuniao.id}`}>
+                                  <a href={reuniao.ata.pdfUrl} target="_blank" rel="noopener noreferrer" download>
+                                    <FileDown className="w-4 h-4 mr-2" />
+                                    Baixar PDF
+                                  </a>
+                                </Button>
+                              )}
+                              {podeEditar && reuniao.ata && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => gerarPdfAtaMutation.mutate(reuniao.ata!.id)}
+                                  disabled={gerarPdfAtaMutation.isPending}
+                                  data-testid={`button-gerar-pdf-ata-${reuniao.id}`}
+                                >
+                                  {gerarPdfAtaMutation.isPending ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Gerando...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <FileDown className="w-4 h-4 mr-2" />
+                                      Gerar PDF
+                                    </>
+                                  )}
                                 </Button>
                               )}
                               {!reuniao.ata?.aprovada && podeEditar && (

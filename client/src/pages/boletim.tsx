@@ -145,6 +145,26 @@ export default function BoletimDominical() {
     },
   });
 
+  const gerarPdfBoletimMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("POST", `/api/boletins/${id}/gerar-pdf`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/boletins"] });
+      toast({
+        title: "PDF gerado com sucesso!",
+        description: "O boletim foi convertido em PDF e está disponível para download.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao gerar PDF",
+        description: error.message || "Não foi possível gerar o PDF. Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Funções para arrays dinâmicos
   const adicionarEvento = () => {
     if (novoEvento.trim()) {
@@ -627,14 +647,35 @@ export default function BoletimDominical() {
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {boletim.publicado && boletim.pdfUrl && (
-                      <Button variant="outline" size="sm" data-testid={`button-baixar-pdf-${boletim.id}`}>
-                        <FileDown className="w-4 h-4 mr-2" />
-                        Baixar PDF
+                    {boletim.pdfUrl && (
+                      <Button variant="outline" size="sm" asChild data-testid={`link-pdf-${boletim.id}`}>
+                        <a href={boletim.pdfUrl} target="_blank" rel="noopener noreferrer" download>
+                          <FileDown className="w-4 h-4 mr-2" />
+                          Baixar PDF
+                        </a>
                       </Button>
                     )}
                     {podeEditar && (
                       <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => gerarPdfBoletimMutation.mutate(boletim.id)}
+                          disabled={gerarPdfBoletimMutation.isPending}
+                          data-testid={`button-gerar-pdf-${boletim.id}`}
+                        >
+                          {gerarPdfBoletimMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Gerando...
+                            </>
+                          ) : (
+                            <>
+                              <FileDown className="w-4 h-4 mr-2" />
+                              Gerar PDF
+                            </>
+                          )}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

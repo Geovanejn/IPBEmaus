@@ -430,14 +430,41 @@ function ProtectedRoute({ component, allowedCargos }) {
   - Preview funcional
 - [x] Campo "Data da Profissão de Fé" adicionado (estava faltando)
 
+## ✅ Funcionalidades Recém-Implementadas (Nov 10, 2025 - Sessão 3)
+
+### Interface de Geração de PDFs (Frontend)
+**Status:** ✅ Implementado
+
+#### Módulo Boletim (`client/src/pages/boletim.tsx`)
+- [x] Mutation `gerarPdfBoletimMutation` para POST `/api/boletins/:id/gerar-pdf`
+- [x] Botão "Gerar PDF" com estado de loading (spinner + texto "Gerando...")
+- [x] Botão "Baixar PDF" condicional (aparece quando `pdfUrl` existe)
+- [x] Link de download com `target="_blank"` e `rel="noopener noreferrer"`
+- [x] Invalidação automática de cache após geração
+- [x] Toasts de sucesso e erro
+- [x] data-testids: `button-gerar-pdf-{id}` e `link-pdf-{id}`
+
+#### Módulo Atas (`client/src/pages/atas.tsx`)
+- [x] Mutation `gerarPdfAtaMutation` para POST `/api/atas/:id/gerar-pdf`
+- [x] Botão "Gerar PDF" com estado de loading (spinner + texto "Gerando...")
+- [x] Botão "Baixar PDF" condicional (aparece quando `pdfUrl` existe)
+- [x] Link de download com `target="_blank"` e `rel="noopener noreferrer"`
+- [x] Invalidação automática de cache após geração
+- [x] Toasts de sucesso e erro
+- [x] data-testids: `button-gerar-pdf-ata-{id}` e `link-pdf-ata-{id}`
+
+#### Comportamento
+- Botões posicionados junto com outras ações no header do card
+- Loading state desabilita o botão e mostra spinner
+- Após geração bem-sucedida, botão "Baixar PDF" aparece automaticamente
+- Cache do TanStack Query é invalidado, recarregando a lista com o novo `pdfUrl`
+- Erros são apresentados com toasts destrutivos
+
 ## ❌ Funcionalidades Ainda Não Implementadas
 
-### 1. Interface de Geração de PDFs (Frontend)
-- [ ] Botão "Gerar PDF" na lista de boletins
-- [ ] Botão "Gerar PDF" na lista de atas
-- [ ] Indicador de loading durante geração
-- [ ] Link para download/visualização do PDF gerado
+### 1. Melhorias Futuras de PDFs
 - [ ] Preview do PDF antes de gerar
+- [ ] Loading state por item (não bloquear todas gerações simultaneamente)
 
 ### 2. Storage de Arquivos em Nuvem (Cloudflare R2 / Supabase)
 - [x] Upload de documentos (local)
@@ -594,4 +621,5 @@ O sistema está com a **base sólida implementada**:
 - ✅ Sistema de aprovação de atas com bloqueio
 
 **Módulos Funcionais:** Dashboard, Pastoral, Financeiro, Diaconal, Boletim, Atas  
-**Taxa de Implementação:** ~85% das funcionalidades básicas
+**Geração de PDFs:** ✅ Backend + Frontend completos
+**Taxa de Implementação:** ~90% das funcionalidades básicas
