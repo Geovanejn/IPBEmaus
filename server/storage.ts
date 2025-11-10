@@ -1,3 +1,8 @@
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import { eq } from "drizzle-orm";
+import ws from "ws";
+import * as schema from "@shared/schema";
 import {
   type Usuario, type InsertUsuario,
   type Membro, type InsertMembro,
@@ -10,7 +15,15 @@ import {
   type Reuniao, type InsertReuniao,
   type Ata, type InsertAta,
 } from "@shared/schema";
-import { randomUUID } from "crypto";
+
+neonConfig.webSocketConstructor = ws;
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL must be set. Did you forget to provision the database?");
+}
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const db = drizzle({ client: pool, schema });
 
 export interface IStorage {
   // Usuários
@@ -70,88 +83,61 @@ export interface IStorage {
   aprovarAta(id: string, aprovadoPorId: string): Promise<Ata | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private usuarios: Map<string, Usuario>;
-  private membros: Map<string, Membro>;
-  private familias: Map<string, Familia>;
-  private visitantes: Map<string, Visitante>;
-  private notasPastorais: Map<string, NotaPastoral>;
-  private transacoes: Map<string, TransacaoFinanceira>;
-  private acoesDiaconais: Map<string, AcaoDiaconal>;
-  private boletins: Map<string, Boletim>;
-  private reunioes: Map<string, Reuniao>;
-  private atas: Map<string, Ata>;
+export class DatabaseStorage implements IStorage {
+  private initialized = false;
 
-  constructor() {
-    this.usuarios = new Map();
-    this.membros = new Map();
-    this.familias = new Map();
-    this.visitantes = new Map();
-    this.notasPastorais = new Map();
-    this.transacoes = new Map();
-    this.acoesDiaconais = new Map();
-    this.boletins = new Map();
-    this.reunioes = new Map();
-    this.atas = new Map();
-    
-    this.popularDadosIniciais();
+  async ensureInitialized() {
+    if (this.initialized) return;
+    await this.popularDadosIniciais();
+    this.initialized = true;
   }
 
-  private popularDadosIniciais() {
-    // Usuários de teste (senha: "123456" para todos)
-    const usuarios: Usuario[] = [
+  private async popularDadosIniciais() {
+    const existingUsers = await db.select().from(schema.usuarios).limit(1);
+    if (existingUsers.length > 0) {
+      return;
+    }
+
+    const usuarios = [
       {
-        id: "u1",
         email: "pastor@ipbemaus.org",
         senha: "123456",
-        cargo: "PASTOR",
+        cargo: "PASTOR" as const,
         nome: "Rev. João Silva",
         ativo: true,
-        criadoEm: new Date(),
       },
       {
-        id: "u2",
         email: "presbitero@ipbemaus.org",
         senha: "123456",
-        cargo: "PRESBITERO",
+        cargo: "PRESBITERO" as const,
         nome: "Pb. Pedro Santos",
         ativo: true,
-        criadoEm: new Date(),
       },
       {
-        id: "u3",
         email: "tesoureiro@ipbemaus.org",
         senha: "123456",
-        cargo: "TESOUREIRO",
+        cargo: "TESOUREIRO" as const,
         nome: "Maria Oliveira",
         ativo: true,
-        criadoEm: new Date(),
       },
       {
-        id: "u4",
         email: "diacono@ipbemaus.org",
         senha: "123456",
-        cargo: "DIACONO",
+        cargo: "DIACONO" as const,
         nome: "Dc. Carlos Costa",
         ativo: true,
-        criadoEm: new Date(),
       },
     ];
-    usuarios.forEach(u => this.usuarios.set(u.id, u));
 
-    // Famílias
-    const familiaId1 = "fam1";
-    this.familias.set(familiaId1, {
-      id: familiaId1,
+    const insertedUsuarios = await db.insert(schema.usuarios).values(usuarios).returning();
+
+    const familia = await db.insert(schema.familias).values({
       nome: "Família Silva Santos",
       endereco: "Rua das Flores, 123 - Centro - São Paulo/SP",
-      criadoEm: new Date(),
-    });
+    }).returning();
 
-    // Membros
-    const membros: Membro[] = [
+    const membros = [
       {
-        id: "m1",
         nome: "Maria Silva Santos",
         email: "maria.silva@email.com",
         telefone: "(11) 98765-4321",
@@ -165,14 +151,11 @@ export class MemStorage implements IStorage {
         profissao: "Professora",
         dataBatismo: "2010-05-20",
         dataProfissaoFe: "2010-05-20",
-        familiaId: familiaId1,
+        familiaId: familia[0].id,
         status: "ativo",
-        fotoUrl: null,
         consentimentoLGPD: true,
-        criadoEm: new Date(),
       },
       {
-        id: "m2",
         nome: "João Santos Silva",
         email: "joao.santos@email.com",
         telefone: "(11) 98765-4322",
@@ -186,14 +169,11 @@ export class MemStorage implements IStorage {
         profissao: "Engenheiro",
         dataBatismo: "2010-05-20",
         dataProfissaoFe: "2010-05-20",
-        familiaId: familiaId1,
+        familiaId: familia[0].id,
         status: "ativo",
-        fotoUrl: null,
         consentimentoLGPD: true,
-        criadoEm: new Date(),
       },
       {
-        id: "m3",
         nome: "Ana Paula Costa",
         email: "ana.costa@email.com",
         telefone: "(11) 98765-4323",
@@ -207,102 +187,76 @@ export class MemStorage implements IStorage {
         profissao: "Médica",
         dataBatismo: "2015-08-15",
         dataProfissaoFe: "2015-08-15",
-        familiaId: null,
         status: "ativo",
-        fotoUrl: null,
         consentimentoLGPD: true,
-        criadoEm: new Date(),
       },
     ];
-    membros.forEach(m => this.membros.set(m.id, m));
 
-    // Visitantes
-    const visitantes: Visitante[] = [
+    const insertedMembros = await db.insert(schema.membros).values(membros).returning();
+
+    await db.insert(schema.visitantes).values([
       {
-        id: "v1",
         nome: "Carlos Alberto Souza",
         email: "carlos.souza@email.com",
         telefone: "(11) 99876-5432",
         endereco: "Rua Nova, 456",
         comoConheceu: "Convite de membro",
-        membroConvidouId: "m1",
+        membroConvidouId: insertedMembros[0].id,
         dataVisita: "2024-11-03",
         observacoes: "Interessado em conhecer a igreja",
         status: "em_acompanhamento",
         consentimentoLGPD: true,
-        criadoEm: new Date(),
       },
       {
-        id: "v2",
         nome: "Beatriz Oliveira",
         email: "bia.oliveira@email.com",
         telefone: "(11) 99876-5433",
         endereco: "Av. São João, 789",
         comoConheceu: "Redes sociais",
-        membroConvidouId: null,
         dataVisita: "2024-11-05",
         observacoes: "Primeira visita",
         status: "novo",
         consentimentoLGPD: true,
-        criadoEm: new Date(),
       },
-    ];
-    visitantes.forEach(v => this.visitantes.set(v.id, v));
+    ]);
 
-    // Transações
-    const transacoes: TransacaoFinanceira[] = [
+    await db.insert(schema.transacoesFinanceiras).values([
       {
-        id: "t1",
         tipo: "receita",
         categoria: "dizimo",
         descricao: "Dízimo - Maria Silva Santos",
         valor: 50000,
         data: "2024-11-03",
-        membroId: "m1",
+        membroId: insertedMembros[0].id,
         centroCusto: "geral",
         metodoPagamento: "transferencia",
-        comprovante: null,
-        observacoes: null,
-        criadoPorId: "u3",
-        criadoEm: new Date(),
+        criadoPorId: insertedUsuarios[2].id,
       },
       {
-        id: "t2",
         tipo: "receita",
         categoria: "oferta",
         descricao: "Oferta de Missões",
         valor: 120000,
         data: "2024-11-03",
-        membroId: null,
         centroCusto: "missoes",
         metodoPagamento: "dinheiro",
-        comprovante: null,
         observacoes: "Culto dominical",
-        criadoPorId: "u3",
-        criadoEm: new Date(),
+        criadoPorId: insertedUsuarios[2].id,
       },
       {
-        id: "t3",
         tipo: "despesa",
         categoria: "despesa_geral",
         descricao: "Energia Elétrica - Outubro",
         valor: 85000,
         data: "2024-11-01",
-        membroId: null,
         centroCusto: "geral",
         metodoPagamento: "transferencia",
-        comprovante: null,
-        observacoes: null,
-        criadoPorId: "u3",
-        criadoEm: new Date(),
+        criadoPorId: insertedUsuarios[2].id,
       },
-    ];
-    transacoes.forEach(t => this.transacoes.set(t.id, t));
+    ]);
 
-    // Ações Diaconais
-    const acoes: AcaoDiaconal[] = [
+    await db.insert(schema.acoesDiaconais).values([
       {
-        id: "ad1",
         tipo: "cesta_basica",
         descricao: "Distribuição de cesta básica para família carente",
         beneficiario: "Família Silva",
@@ -310,232 +264,208 @@ export class MemStorage implements IStorage {
         endereco: "Rua das Acácias, 45 - Jardim São Paulo",
         valorGasto: 15000,
         data: "2024-11-01",
-        responsavelId: "u4",
+        responsavelId: insertedUsuarios[3].id,
         observacoes: "Família com 5 pessoas, incluindo 3 crianças",
-        criadoEm: new Date(),
       },
       {
-        id: "ad2",
         tipo: "visita",
         descricao: "Visita a irmão enfermo",
         beneficiario: "João Pedro Oliveira",
         telefone: "(11) 98765-2222",
         endereco: "Rua Esperança, 123 - Apto 45",
-        valorGasto: null,
         data: "2024-11-02",
-        responsavelId: "u4",
+        responsavelId: insertedUsuarios[3].id,
         observacoes: "Oração e leitura bíblica realizada",
-        criadoEm: new Date(),
       },
-    ];
-    acoes.forEach(a => this.acoesDiaconais.set(a.id, a));
+    ]);
   }
 
-  // Usuários
   async getUsuario(id: string): Promise<Usuario | undefined> {
-    return this.usuarios.get(id);
+    await this.ensureInitialized();
+    const result = await db.select().from(schema.usuarios).where(eq(schema.usuarios.id, id)).limit(1);
+    return result[0];
   }
 
   async getUsuarioPorEmail(email: string): Promise<Usuario | undefined> {
-    return Array.from(this.usuarios.values()).find(u => u.email === email);
+    await this.ensureInitialized();
+    const result = await db.select().from(schema.usuarios).where(eq(schema.usuarios.email, email)).limit(1);
+    return result[0];
   }
 
   async criarUsuario(insertUsuario: InsertUsuario): Promise<Usuario> {
-    const id = randomUUID();
-    const usuario: Usuario = { ...insertUsuario, id, ativo: true, criadoEm: new Date() };
-    this.usuarios.set(id, usuario);
-    return usuario;
+    const result = await db.insert(schema.usuarios).values(insertUsuario).returning();
+    return result[0];
   }
 
-  // Membros
   async getMembros(): Promise<Membro[]> {
-    return Array.from(this.membros.values());
+    await this.ensureInitialized();
+    return await db.select().from(schema.membros);
   }
 
   async getMembro(id: string): Promise<Membro | undefined> {
-    return this.membros.get(id);
+    await this.ensureInitialized();
+    const result = await db.select().from(schema.membros).where(eq(schema.membros.id, id)).limit(1);
+    return result[0];
   }
 
   async criarMembro(insertMembro: InsertMembro): Promise<Membro> {
-    const id = randomUUID();
-    const membro: Membro = { ...insertMembro, id, criadoEm: new Date() };
-    this.membros.set(id, membro);
-    return membro;
+    const result = await db.insert(schema.membros).values(insertMembro).returning();
+    return result[0];
   }
 
   async atualizarMembro(id: string, dados: Partial<Membro>): Promise<Membro | undefined> {
-    const membro = this.membros.get(id);
-    if (!membro) return undefined;
-    const atualizado = { ...membro, ...dados };
-    this.membros.set(id, atualizado);
-    return atualizado;
+    const result = await db.update(schema.membros).set(dados).where(eq(schema.membros.id, id)).returning();
+    return result[0];
   }
 
   async deletarMembro(id: string): Promise<boolean> {
-    return this.membros.delete(id);
+    const result = await db.delete(schema.membros).where(eq(schema.membros.id, id)).returning();
+    return result.length > 0;
   }
 
-  // Famílias
   async getFamilias(): Promise<Familia[]> {
-    return Array.from(this.familias.values());
+    await this.ensureInitialized();
+    return await db.select().from(schema.familias);
   }
 
   async getFamilia(id: string): Promise<Familia | undefined> {
-    return this.familias.get(id);
+    const result = await db.select().from(schema.familias).where(eq(schema.familias.id, id)).limit(1);
+    return result[0];
   }
 
   async criarFamilia(insertFamilia: InsertFamilia): Promise<Familia> {
-    const id = randomUUID();
-    const familia: Familia = { ...insertFamilia, id, criadoEm: new Date() };
-    this.familias.set(id, familia);
-    return familia;
+    const result = await db.insert(schema.familias).values(insertFamilia).returning();
+    return result[0];
   }
 
-  // Visitantes
   async getVisitantes(): Promise<Visitante[]> {
-    return Array.from(this.visitantes.values());
+    await this.ensureInitialized();
+    return await db.select().from(schema.visitantes);
   }
 
   async getVisitante(id: string): Promise<Visitante | undefined> {
-    return this.visitantes.get(id);
+    const result = await db.select().from(schema.visitantes).where(eq(schema.visitantes.id, id)).limit(1);
+    return result[0];
   }
 
   async criarVisitante(insertVisitante: InsertVisitante): Promise<Visitante> {
-    const id = randomUUID();
-    const visitante: Visitante = { ...insertVisitante, id, criadoEm: new Date() };
-    this.visitantes.set(id, visitante);
-    return visitante;
+    const result = await db.insert(schema.visitantes).values(insertVisitante).returning();
+    return result[0];
   }
 
   async atualizarVisitante(id: string, dados: Partial<Visitante>): Promise<Visitante | undefined> {
-    const visitante = this.visitantes.get(id);
-    if (!visitante) return undefined;
-    const atualizado = { ...visitante, ...dados };
-    this.visitantes.set(id, atualizado);
-    return atualizado;
+    const result = await db.update(schema.visitantes).set(dados).where(eq(schema.visitantes.id, id)).returning();
+    return result[0];
   }
 
   async deletarVisitante(id: string): Promise<boolean> {
-    return this.visitantes.delete(id);
+    const result = await db.delete(schema.visitantes).where(eq(schema.visitantes.id, id)).returning();
+    return result.length > 0;
   }
 
-  // Notas Pastorais
   async getNotasPastorais(): Promise<NotaPastoral[]> {
-    return Array.from(this.notasPastorais.values());
+    await this.ensureInitialized();
+    return await db.select().from(schema.notasPastorais);
   }
 
   async getNotasPorMembro(membroId: string): Promise<NotaPastoral[]> {
-    return Array.from(this.notasPastorais.values()).filter(n => n.membroId === membroId);
+    return await db.select().from(schema.notasPastorais).where(eq(schema.notasPastorais.membroId, membroId));
   }
 
   async criarNotaPastoral(insertNota: InsertNotaPastoral): Promise<NotaPastoral> {
-    const id = randomUUID();
-    const nota: NotaPastoral = { ...insertNota, id, criadoEm: new Date() };
-    this.notasPastorais.set(id, nota);
-    return nota;
+    const result = await db.insert(schema.notasPastorais).values(insertNota).returning();
+    return result[0];
   }
 
-  // Transações
   async getTransacoes(): Promise<TransacaoFinanceira[]> {
-    return Array.from(this.transacoes.values());
+    await this.ensureInitialized();
+    return await db.select().from(schema.transacoesFinanceiras);
   }
 
   async getTransacao(id: string): Promise<TransacaoFinanceira | undefined> {
-    return this.transacoes.get(id);
+    const result = await db.select().from(schema.transacoesFinanceiras).where(eq(schema.transacoesFinanceiras.id, id)).limit(1);
+    return result[0];
   }
 
   async criarTransacao(insertTransacao: InsertTransacaoFinanceira): Promise<TransacaoFinanceira> {
-    const id = randomUUID();
-    const transacao: TransacaoFinanceira = { ...insertTransacao, id, criadoEm: new Date() };
-    this.transacoes.set(id, transacao);
-    return transacao;
+    const result = await db.insert(schema.transacoesFinanceiras).values(insertTransacao).returning();
+    return result[0];
   }
 
-  // Ações Diaconais
   async getAcoesDiaconais(): Promise<AcaoDiaconal[]> {
-    return Array.from(this.acoesDiaconais.values());
+    await this.ensureInitialized();
+    return await db.select().from(schema.acoesDiaconais);
   }
 
   async getAcaoDiaconal(id: string): Promise<AcaoDiaconal | undefined> {
-    return this.acoesDiaconais.get(id);
+    const result = await db.select().from(schema.acoesDiaconais).where(eq(schema.acoesDiaconais.id, id)).limit(1);
+    return result[0];
   }
 
   async criarAcaoDiaconal(insertAcao: InsertAcaoDiaconal): Promise<AcaoDiaconal> {
-    const id = randomUUID();
-    const acao: AcaoDiaconal = { ...insertAcao, id, criadoEm: new Date() };
-    this.acoesDiaconais.set(id, acao);
-    return acao;
+    const result = await db.insert(schema.acoesDiaconais).values(insertAcao).returning();
+    return result[0];
   }
 
-  // Boletins
   async getBoletins(): Promise<Boletim[]> {
-    return Array.from(this.boletins.values());
+    await this.ensureInitialized();
+    return await db.select().from(schema.boletins);
   }
 
   async getBoletim(id: string): Promise<Boletim | undefined> {
-    return this.boletins.get(id);
+    const result = await db.select().from(schema.boletins).where(eq(schema.boletins.id, id)).limit(1);
+    return result[0];
   }
 
   async criarBoletim(insertBoletim: InsertBoletim): Promise<Boletim> {
-    const id = randomUUID();
-    const boletim: Boletim = { ...insertBoletim, id, criadoEm: new Date() };
-    this.boletins.set(id, boletim);
-    return boletim;
+    const result = await db.insert(schema.boletins).values(insertBoletim).returning();
+    return result[0];
   }
 
   async atualizarBoletim(id: string, dados: Partial<Boletim>): Promise<Boletim | undefined> {
-    const boletim = this.boletins.get(id);
-    if (!boletim) return undefined;
-    const atualizado = { ...boletim, ...dados };
-    this.boletins.set(id, atualizado);
-    return atualizado;
+    const result = await db.update(schema.boletins).set(dados).where(eq(schema.boletins.id, id)).returning();
+    return result[0];
   }
 
-  // Reuniões
   async getReunioes(): Promise<Reuniao[]> {
-    return Array.from(this.reunioes.values());
+    await this.ensureInitialized();
+    return await db.select().from(schema.reunioes);
   }
 
   async getReuniao(id: string): Promise<Reuniao | undefined> {
-    return this.reunioes.get(id);
+    const result = await db.select().from(schema.reunioes).where(eq(schema.reunioes.id, id)).limit(1);
+    return result[0];
   }
 
   async criarReuniao(insertReuniao: InsertReuniao): Promise<Reuniao> {
-    const id = randomUUID();
-    const reuniao: Reuniao = { ...insertReuniao, id, criadoEm: new Date() };
-    this.reunioes.set(id, reuniao);
-    return reuniao;
+    const result = await db.insert(schema.reunioes).values(insertReuniao).returning();
+    return result[0];
   }
 
-  // Atas
   async getAtas(): Promise<Ata[]> {
-    return Array.from(this.atas.values());
+    await this.ensureInitialized();
+    return await db.select().from(schema.atas);
   }
 
   async getAta(id: string): Promise<Ata | undefined> {
-    return this.atas.get(id);
+    const result = await db.select().from(schema.atas).where(eq(schema.atas.id, id)).limit(1);
+    return result[0];
   }
 
   async criarAta(insertAta: InsertAta): Promise<Ata> {
-    const id = randomUUID();
-    const ata: Ata = { ...insertAta, id, criadoEm: new Date() };
-    this.atas.set(id, ata);
-    return ata;
+    const result = await db.insert(schema.atas).values(insertAta).returning();
+    return result[0];
   }
 
   async aprovarAta(id: string, aprovadoPorId: string): Promise<Ata | undefined> {
-    const ata = this.atas.get(id);
-    if (!ata) return undefined;
-    const aprovada: Ata = {
-      ...ata,
+    const result = await db.update(schema.atas).set({
       aprovada: true,
       dataAprovacao: new Date(),
       aprovadoPorId,
       bloqueada: true,
-    };
-    this.atas.set(id, aprovada);
-    return aprovada;
+    }).where(eq(schema.atas.id, id)).returning();
+    return result[0];
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
