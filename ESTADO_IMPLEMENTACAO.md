@@ -2,7 +2,44 @@
 
 ## ✅ Problemas Corrigidos Nesta Sessão
 
-### 1. Navegação do Diácono e Tesoureiro
+### 1. Sistema de Rotas Protegidas (NOVA CORREÇÃO - 10/11/2025)
+**Problema:** Usuários viam "página não encontrada" ao tentar acessar rotas para as quais não tinham permissão. Por exemplo:
+- TESOUREIRO tentando acessar `/pastoral` → via "404 Not Found"
+- DIÁCONO tentando acessar `/financeiro` → via "404 Not Found"
+- PRESBÍTERO tentando acessar `/diaconal` → via "404 Not Found"
+
+**Solução Implementada:** 
+- Criada configuração centralizada de rotas (`ROUTES`) em `client/src/App.tsx`
+- Implementado componente `ProtectedRoute` que verifica permissões
+- Usuários são automaticamente redirecionados para sua página padrão ao tentarem acessar rotas não autorizadas
+- Eliminada duplicação de lógica entre Router e AppHeader
+- Sistema agora diferencia entre:
+  - **Rotas não autorizadas** (existem mas usuário não tem acesso) → Redireciona para página padrão
+  - **Rotas inexistentes** (não existem no sistema) → Mostra 404
+
+**Arquitetura:**
+```typescript
+// Configuração centralizada
+const ROUTES = [
+  { path: "/", component: Dashboard, allowedCargos: ["PASTOR"] },
+  { path: "/pastoral", component: Pastoral, allowedCargos: ["PASTOR", "PRESBITERO"] },
+  // ...
+];
+
+// Componente de proteção
+function ProtectedRoute({ component, allowedCargos }) {
+  if (!allowedCargos.includes(usuario.cargo)) {
+    return <Redirect to={getRotaPadrão()} />;
+  }
+  return <Component />;
+}
+```
+
+**Teste Manual:** Consulte `TESTES_ROTAS.md` para instruções de validação completas.
+
+---
+
+### 2. Navegação do Diácono e Tesoureiro
 **Problema:** Ao fazer login como Diácono ou Tesoureiro, a navegação para "/diaconal" e "/financeiro" estava funcionando, mas ao clicar em "Voltar ao Início" em uma página não encontrada, o sistema redirecionava para "/" (Dashboard), rota que eles não têm permissão de acessar.
 
 **Solução Implementada:** 
@@ -10,7 +47,7 @@
 - Agora o botão "Voltar ao Início" redireciona para a página padrão do cargo do usuário
 - Fallback defensivo para `/login` quando não autenticado
 
-### 2. Erro de Tipagem no Módulo Financeiro
+### 3. Erro de Tipagem no Módulo Financeiro
 **Problema:** Erros LSP de TypeScript no arquivo `client/src/pages/financeiro.tsx` causados por incompatibilidade de tipos no formulário.
 
 **Solução Implementada:**
