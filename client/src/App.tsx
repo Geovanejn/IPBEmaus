@@ -43,12 +43,6 @@ const ROUTES: RouteConfig[] = [
     name: "Dashboard",
   },
   {
-    path: "/painel",
-    component: Dashboard,
-    allowedCargos: ["PASTOR"],
-    name: "Painel",
-  },
-  {
     path: "/pastoral",
     component: Pastoral,
     allowedCargos: ["PASTOR", "PRESBITERO"],
@@ -221,6 +215,11 @@ function Router() {
             {/* Redireciona usuários autenticados que tentam acessar /login */}
             <Route path="/login">
               <Redirect to={getRotaPadrão()} />
+            </Route>
+            
+            {/* Alias: /painel redireciona para / (Dashboard) */}
+            <Route path="/painel">
+              <Redirect to="/" />
             </Route>
             
             {ROUTES.map((route) => (

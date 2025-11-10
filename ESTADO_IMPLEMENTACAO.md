@@ -2,7 +2,32 @@
 
 ## ✅ Problemas Corrigidos Nesta Sessão
 
-### 1. Sistema de Rotas Protegidas (NOVA CORREÇÃO - 10/11/2025)
+### 1. Rota /painel Não Encontrada (CORREÇÃO - 10/11/2025)
+**Problema:** Ao acessar `/painel`, o sistema mostrava "Erro ao carregar dados. Tente novamente." porque a rota não existia mais no sistema de rotas centralizado após a refatoração recente. O Dashboard estava apenas disponível em `/`.
+
+**Solução Implementada:**
+- Adicionado redirecionamento de `/painel` para `/` em `client/src/App.tsx`
+- A rota `/painel` funciona como um alias para o Dashboard
+- URLs antigas e bookmarks continuam funcionando
+- Não cria entrada duplicada no menu de navegação (solução limpa via redirect)
+
+**Código Adicionado:**
+```typescript
+{/* Alias: /painel redireciona para / (Dashboard) */}
+<Route path="/painel">
+  <Redirect to="/" />
+</Route>
+```
+
+**Comportamento:**
+- Usuários não autenticados acessando `/painel` → Redirecionados para `/login`
+- Pastor autenticado acessando `/painel` → Redirecionado para `/` (Dashboard carrega normalmente)
+- Outros cargos acessando `/painel` → Redirecionados para `/` e então para sua página padrão
+- Menu de navegação mostra apenas "Dashboard" (sem duplicatas)
+
+---
+
+### 2. Sistema de Rotas Protegidas (CORREÇÃO - 10/11/2025)
 **Problema:** Usuários viam "página não encontrada" ao tentar acessar rotas para as quais não tinham permissão. Por exemplo:
 - TESOUREIRO tentando acessar `/pastoral` → via "404 Not Found"
 - DIÁCONO tentando acessar `/financeiro` → via "404 Not Found"
