@@ -267,72 +267,177 @@ export default function Pastoral() {
                     Preencha os dados do novo membro da congregação
                   </DialogDescription>
                 </DialogHeader>
-                <form className="space-y-4 mt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="nome">Nome Completo *</Label>
-                      <Input id="nome" placeholder="Digite o nome completo" />
+                <Form {...formMembro}>
+                  <form onSubmit={formMembro.handleSubmit((data) => criarMembroMutation.mutate(data))} className="space-y-4 mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={formMembro.control}
+                        name="nome"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Nome Completo *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Digite o nome completo" {...field} data-testid="input-nome-membro" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formMembro.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>E-mail</FormLabel>
+                            <FormControl>
+                              <Input type="email" placeholder="email@exemplo.com" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formMembro.control}
+                        name="telefone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Telefone</FormLabel>
+                            <FormControl>
+                              <Input placeholder="(11) 98765-4321" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formMembro.control}
+                        name="dataNascimento"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Data de Nascimento</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formMembro.control}
+                        name="estadoCivil"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Estado Civil</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="solteiro">Solteiro(a)</SelectItem>
+                                <SelectItem value="casado">Casado(a)</SelectItem>
+                                <SelectItem value="viuvo">Viúvo(a)</SelectItem>
+                                <SelectItem value="divorciado">Divorciado(a)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formMembro.control}
+                        name="endereco"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Endereço Completo</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Rua, número, complemento" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formMembro.control}
+                        name="bairro"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Bairro</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Nome do bairro" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formMembro.control}
+                        name="cidade"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Cidade *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Nome da cidade" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formMembro.control}
+                        name="profissao"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Profissão</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Profissão" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formMembro.control}
+                        name="dataBatismo"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Data do Batismo</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">E-mail</Label>
-                      <Input id="email" type="email" placeholder="email@exemplo.com" />
+                    <FormField
+                      control={formMembro.control}
+                      name="consentimentoLGPD"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-start gap-2">
+                            <FormControl>
+                              <input type="checkbox" className="w-4 h-4 mt-1" checked={field.value} onChange={field.onChange} data-testid="checkbox-lgpd-membro" />
+                            </FormControl>
+                            <FormLabel className="text-sm font-normal cursor-pointer">
+                              Consentimento LGPD: Autorizo o uso de meus dados pessoais para fins eclesiásticos
+                            </FormLabel>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button type="button" variant="outline" onClick={() => setDialogNovoMembro(false)}>
+                        Cancelar
+                      </Button>
+                      <Button type="submit" disabled={criarMembroMutation.isPending} data-testid="button-salvar-membro">
+                        {criarMembroMutation.isPending ? "Salvando..." : "Salvar Membro"}
+                      </Button>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="telefone">Telefone *</Label>
-                      <Input id="telefone" placeholder="(11) 98765-4321" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="dataNascimento">Data de Nascimento</Label>
-                      <Input id="dataNascimento" type="date" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="estadoCivil">Estado Civil</Label>
-                      <Select>
-                        <SelectTrigger id="estadoCivil">
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="solteiro">Solteiro(a)</SelectItem>
-                          <SelectItem value="casado">Casado(a)</SelectItem>
-                          <SelectItem value="viuvo">Viúvo(a)</SelectItem>
-                          <SelectItem value="divorciado">Divorciado(a)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="endereco">Endereço Completo</Label>
-                      <Input id="endereco" placeholder="Rua, número, complemento" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="bairro">Bairro</Label>
-                      <Input id="bairro" placeholder="Nome do bairro" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cidade">Cidade</Label>
-                      <Input id="cidade" placeholder="Nome da cidade" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="profissao">Profissão</Label>
-                      <Input id="profissao" placeholder="Profissão" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="dataBatismo">Data do Batismo</Label>
-                      <Input id="dataBatismo" type="date" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" id="lgpd" className="w-4 h-4" required />
-                    <Label htmlFor="lgpd" className="text-sm font-normal">
-                      Consentimento LGPD: Autorizo o uso de meus dados pessoais para fins eclesiásticos
-                    </Label>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setDialogNovoMembro(false)}>
-                      Cancelar
-                    </Button>
-                    <Button type="submit">Salvar Membro</Button>
-                  </div>
-                </form>
+                  </form>
+                </Form>
               </DialogContent>
             </Dialog>
 
@@ -350,56 +455,125 @@ export default function Pastoral() {
                     Cadastre informações do visitante para acompanhamento
                   </DialogDescription>
                 </DialogHeader>
-                <form className="space-y-4 mt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="nomeVisitante">Nome Completo *</Label>
-                      <Input id="nomeVisitante" placeholder="Digite o nome completo" />
+                <Form {...formVisitante}>
+                  <form onSubmit={formVisitante.handleSubmit((data) => criarVisitanteMutation.mutate(data))} className="space-y-4 mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={formVisitante.control}
+                        name="nome"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Nome Completo *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Digite o nome completo" {...field} data-testid="input-nome-visitante" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formVisitante.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>E-mail</FormLabel>
+                            <FormControl>
+                              <Input type="email" placeholder="email@exemplo.com" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formVisitante.control}
+                        name="telefone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Telefone</FormLabel>
+                            <FormControl>
+                              <Input placeholder="(11) 98765-4321" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formVisitante.control}
+                        name="dataVisita"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Data da Visita *</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formVisitante.control}
+                        name="comoConheceu"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Como conheceu a igreja?</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="convite">Convite de membro</SelectItem>
+                                <SelectItem value="internet">Internet/Redes sociais</SelectItem>
+                                <SelectItem value="passava">Passava pelo local</SelectItem>
+                                <SelectItem value="outro">Outro</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={formVisitante.control}
+                        name="observacoes"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Observações</FormLabel>
+                            <FormControl>
+                              <Textarea placeholder="Informações adicionais sobre o visitante" rows={3} {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="emailVisitante">E-mail</Label>
-                      <Input id="emailVisitante" type="email" placeholder="email@exemplo.com" />
+                    <FormField
+                      control={formVisitante.control}
+                      name="consentimentoLGPD"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-start gap-2">
+                            <FormControl>
+                              <input type="checkbox" className="w-4 h-4 mt-1" checked={field.value} onChange={field.onChange} data-testid="checkbox-lgpd-visitante" />
+                            </FormControl>
+                            <FormLabel className="text-sm font-normal cursor-pointer">
+                              Consentimento LGPD obtido para contato
+                            </FormLabel>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button type="button" variant="outline" onClick={() => setDialogNovoVisitante(false)}>
+                        Cancelar
+                      </Button>
+                      <Button type="submit" disabled={criarVisitanteMutation.isPending} data-testid="button-salvar-visitante">
+                        {criarVisitanteMutation.isPending ? "Salvando..." : "Salvar Visitante"}
+                      </Button>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="telefoneVisitante">Telefone</Label>
-                      <Input id="telefoneVisitante" placeholder="(11) 98765-4321" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="dataVisita">Data da Visita *</Label>
-                      <Input id="dataVisita" type="date" defaultValue={new Date().toISOString().split("T")[0]} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="comoConheceu">Como conheceu a igreja?</Label>
-                      <Select>
-                        <SelectTrigger id="comoConheceu">
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="convite">Convite de membro</SelectItem>
-                          <SelectItem value="internet">Internet/Redes sociais</SelectItem>
-                          <SelectItem value="passava">Passava pelo local</SelectItem>
-                          <SelectItem value="outro">Outro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="observacoes">Observações</Label>
-                      <Textarea id="observacoes" placeholder="Informações adicionais sobre o visitante" rows={3} />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" id="lgpdVisitante" className="w-4 h-4" required />
-                    <Label htmlFor="lgpdVisitante" className="text-sm font-normal">
-                      Consentimento LGPD obtido para contato
-                    </Label>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setDialogNovoVisitante(false)}>
-                      Cancelar
-                    </Button>
-                    <Button type="submit">Salvar Visitante</Button>
-                  </div>
-                </form>
+                  </form>
+                </Form>
               </DialogContent>
             </Dialog>
           </div>
@@ -506,7 +680,17 @@ export default function Pastoral() {
                           <Button variant="ghost" size="icon">
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => {
+                              if (confirm(`Tem certeza que deseja remover ${membro.nome}?`)) {
+                                deletarMembroMutation.mutate(membro.id);
+                              }
+                            }}
+                            disabled={deletarMembroMutation.isPending}
+                            data-testid={`button-deletar-membro-${membro.id}`}
+                          >
                             <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
                         </>
@@ -592,7 +776,17 @@ export default function Pastoral() {
                           <Button variant="ghost" size="icon">
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => {
+                              if (confirm(`Tem certeza que deseja remover ${visitante.nome}?`)) {
+                                deletarVisitanteMutation.mutate(visitante.id);
+                              }
+                            }}
+                            disabled={deletarVisitanteMutation.isPending}
+                            data-testid={`button-deletar-visitante-${visitante.id}`}
+                          >
                             <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
                         </>
