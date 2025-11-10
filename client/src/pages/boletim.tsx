@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ import {
   Calendar,
   CakeSlice,
   Users,
+  Loader2,
 } from "lucide-react";
 import { type Boletim } from "@shared/schema";
 
@@ -29,8 +31,30 @@ export default function BoletimDominical() {
 
   const podeEditar = temPermissao("boletim", "total");
 
-  // Mock data para demonstração visual
-  const boletins: Boletim[] = [
+  const { data: boletins = [], isLoading, isError, refetch } = useQuery<Boletim[]>({
+    queryKey: ["/api/boletins"],
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <p className="text-destructive">Erro ao carregar boletins. Tente novamente.</p>
+        <Button onClick={() => refetch()} variant="outline">
+          Tentar Novamente
+        </Button>
+      </div>
+    );
+  }
+
+  const boletins_mock: Boletim[] = [
     {
       id: "1",
       data: "2024-11-10",

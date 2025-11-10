@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ import {
   CheckCircle2,
   Clock,
   Lock,
+  Loader2,
 } from "lucide-react";
 import { type Reuniao, type Ata } from "@shared/schema";
 
@@ -32,8 +34,40 @@ export default function SecretariaAtas() {
 
   const podeEditar = temPermissao("atas", "total");
 
-  // Mock data para demonstração visual
-  const reunioes: (Reuniao & { ata?: Ata })[] = [
+  const { data: reunioesData = [], isLoading: isLoadingReunioes, isError: isErrorReunioes, refetch: refetchReunioes } = useQuery<Reuniao[]>({
+    queryKey: ["/api/reunioes"],
+  });
+
+  const { data: atasData = [], isLoading: isLoadingAtas, isError: isErrorAtas, refetch: refetchAtas } = useQuery<Ata[]>({
+    queryKey: ["/api/atas"],
+  });
+
+  if (isLoadingReunioes || isLoadingAtas) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isErrorReunioes || isErrorAtas) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <p className="text-destructive">Erro ao carregar dados. Tente novamente.</p>
+        <Button onClick={() => { refetchReunioes(); refetchAtas(); }} variant="outline">
+          Tentar Novamente
+        </Button>
+      </div>
+    );
+  }
+
+  // Combinar reuniões com suas atas
+  const reunioesComAtas: (Reuniao & { ata?: Ata })[] = reunioesData.map(r => ({
+    ...r,
+    ata: atasData.find(a => a.reuniaoId === r.id)
+  }));
+
+  const reunioes_mock: (Reuniao & { ata?: Ata })[] = [
     {
       id: "r1",
       tipo: "conselho",
@@ -236,11 +270,11 @@ Não havendo mais assuntos a tratar, a reunião foi encerrada às 21:00 com ora�
           <Card>
             <CardHeader>
               <CardTitle>Reuniões Agendadas e Realizadas</CardTitle>
-              <CardDescription>{reunioes.length} reuniões registradas</CardDescription>
+              <CardDescription>{reunioesComAtas.length} reuniões registradas</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {reunioes
+                {reunioesComAtas
                   .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
                   .map((reuniao) => (
                     <div
@@ -350,7 +384,7 @@ Não havendo mais assuntos a tratar, a reunião foi encerrada às 21:00 com ora�
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {reunioes
+                {reunioesComAtas
                   .filter((r) => r.ata)
                   .map((reuniao) => (
                     <Card key={reuniao.id} className="border-2">
