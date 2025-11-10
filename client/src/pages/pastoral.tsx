@@ -37,107 +37,31 @@ export default function Pastoral() {
 
   const podeEditar = temPermissao("pastoral", "total");
 
-  // Mock data para demonstração visual
-  const membros: (Membro & { idade?: number })[] = [
-    {
-      id: "1",
-      nome: "Maria Silva Santos",
-      email: "maria.silva@email.com",
-      telefone: "(11) 98765-4321",
-      dataNascimento: "1985-03-15",
-      endereco: "Rua das Flores, 123",
-      bairro: "Centro",
-      cidade: "São Paulo",
-      estado: "SP",
-      cep: "01234-567",
-      estadoCivil: "casado",
-      profissao: "Professora",
-      dataBatismo: "2010-05-20",
-      dataProfissaoFe: "2010-05-20",
-      familiaId: "fam1",
-      status: "ativo",
-      fotoUrl: null,
-      consentimentoLGPD: true,
-      criadoEm: new Date(),
-      idade: 38,
-    },
-    {
-      id: "2",
-      nome: "João Santos Silva",
-      email: "joao.santos@email.com",
-      telefone: "(11) 98765-4322",
-      dataNascimento: "1982-07-22",
-      endereco: "Rua das Flores, 123",
-      bairro: "Centro",
-      cidade: "São Paulo",
-      estado: "SP",
-      cep: "01234-567",
-      estadoCivil: "casado",
-      profissao: "Engenheiro",
-      dataBatismo: "2010-05-20",
-      dataProfissaoFe: "2010-05-20",
-      familiaId: "fam1",
-      status: "ativo",
-      fotoUrl: null,
-      consentimentoLGPD: true,
-      criadoEm: new Date(),
-      idade: 41,
-    },
-    {
-      id: "3",
-      nome: "Ana Paula Costa",
-      email: "ana.costa@email.com",
-      telefone: "(11) 98765-4323",
-      dataNascimento: "1990-11-10",
-      endereco: "Av. Paulista, 500",
-      bairro: "Bela Vista",
-      cidade: "São Paulo",
-      estado: "SP",
-      cep: "01311-000",
-      estadoCivil: "solteiro",
-      profissao: "Médica",
-      dataBatismo: "2015-08-15",
-      dataProfissaoFe: "2015-08-15",
-      familiaId: null,
-      status: "ativo",
-      fotoUrl: null,
-      consentimentoLGPD: true,
-      criadoEm: new Date(),
-      idade: 33,
-    },
-  ];
+  const { data: membros = [], isLoading: isLoadingMembros } = useQuery<Membro[]>({
+    queryKey: ["/api/membros"],
+  });
 
-  const visitantes: (Visitante & { membroConvidou?: string })[] = [
-    {
-      id: "v1",
-      nome: "Carlos Alberto Souza",
-      email: "carlos.souza@email.com",
-      telefone: "(11) 99876-5432",
-      endereco: "Rua Nova, 456",
-      comoConheceu: "Convite de membro",
-      membroConvidouId: "1",
-      dataVisita: "2024-11-03",
-      observacoes: "Interessado em conhecer a igreja",
-      status: "em_acompanhamento",
-      consentimentoLGPD: true,
-      criadoEm: new Date(),
-      membroConvidou: "Maria Silva Santos",
-    },
-    {
-      id: "v2",
-      nome: "Beatriz Oliveira",
-      email: "bia.oliveira@email.com",
-      telefone: "(11) 99876-5433",
-      endereco: "Av. São João, 789",
-      comoConheceu: "Redes sociais",
-      membroConvidouId: null,
-      dataVisita: "2024-11-05",
-      observacoes: "Primeira visita",
-      status: "novo",
-      consentimentoLGPD: true,
-      criadoEm: new Date(),
-    },
-  ];
+  const { data: visitantes = [], isLoading: isLoadingVisitantes } = useQuery<Visitante[]>({
+    queryKey: ["/api/visitantes"],
+  });
+
+  const calcularIdade = (dataNascimento: string | null): number | null => {
+    if (!dataNascimento) return null;
+    try {
+      const hoje = new Date();
+      const nascimento = new Date(dataNascimento);
+      if (isNaN(nascimento.getTime())) return null;
+      
+      let idade = hoje.getFullYear() - nascimento.getFullYear();
+      const mes = hoje.getMonth() - nascimento.getMonth();
+      if (mes < 0 || (mes === 0 && hoje.getDate() < nascimento.getDate())) {
+        idade--;
+      }
+      return idade;
+    } catch {
+      return null;
+    }
+  };
 
   const aniversariantes = membros
     .filter((m) => {
@@ -378,13 +302,26 @@ export default function Pastoral() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {membros.map((membro) => (
-                  <div
-                    key={membro.id}
-                    className="flex items-center justify-between p-4 rounded-lg border hover-elevate"
-                    data-testid={`membro-${membro.id}`}
-                  >
+              {isLoadingMembros ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Carregando membros...</p>
+                  </div>
+                </div>
+              ) : membros.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Nenhum membro cadastrado</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {membros.map((membro) => (
+                    <div
+                      key={membro.id}
+                      className="flex items-center justify-between p-4 rounded-lg border hover-elevate"
+                      data-testid={`membro-${membro.id}`}
+                    >
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0">
                         <span className="text-lg font-semibold text-primary">
@@ -406,10 +343,10 @@ export default function Pastoral() {
                               {membro.email}
                             </span>
                           )}
-                          {membro.idade && (
+                          {membro.dataNascimento && calcularIdade(membro.dataNascimento) !== null && (
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
-                              {membro.idade} anos
+                              {calcularIdade(membro.dataNascimento)} anos
                             </span>
                           )}
                         </div>
@@ -433,9 +370,10 @@ export default function Pastoral() {
                         </>
                       )}
                     </div>
-                  </div>
-                ))}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -452,13 +390,26 @@ export default function Pastoral() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {visitantes.map((visitante) => (
-                  <div
-                    key={visitante.id}
-                    className="flex items-center justify-between p-4 rounded-lg border hover-elevate"
-                    data-testid={`visitante-${visitante.id}`}
-                  >
+              {isLoadingVisitantes ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Carregando visitantes...</p>
+                  </div>
+                </div>
+              ) : visitantes.length === 0 ? (
+                <div className="text-center py-12">
+                  <UserPlus className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Nenhum visitante registrado</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {visitantes.map((visitante) => (
+                    <div
+                      key={visitante.id}
+                      className="flex items-center justify-between p-4 rounded-lg border hover-elevate"
+                      data-testid={`visitante-${visitante.id}`}
+                    >
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500/20 to-purple-500/5 flex items-center justify-center flex-shrink-0">
                         <span className="text-lg font-semibold text-purple-600">
@@ -478,10 +429,10 @@ export default function Pastoral() {
                             <Calendar className="w-3 h-3" />
                             Visitou em {new Date(visitante.dataVisita).toLocaleDateString("pt-BR")}
                           </span>
-                          {visitante.membroConvidou && (
+                          {visitante.membroConvidouId && (
                             <span className="flex items-center gap-1">
                               <UserPlus className="w-3 h-3" />
-                              Convidado por {visitante.membroConvidou}
+                              Convidado por membro
                             </span>
                           )}
                         </div>
@@ -505,9 +456,10 @@ export default function Pastoral() {
                         </>
                       )}
                     </div>
-                  </div>
-                ))}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -539,7 +491,7 @@ export default function Pastoral() {
                         <p className="font-medium">{membro.nome}</p>
                         <p className="text-sm text-muted-foreground mt-0.5">
                           {membro.diaAniversario} de {new Date().toLocaleDateString("pt-BR", { month: "long" })}
-                          {membro.idade && ` • ${membro.idade} anos`}
+                          {membro.dataNascimento && calcularIdade(membro.dataNascimento) !== null && ` • ${calcularIdade(membro.dataNascimento)} anos`}
                         </p>
                       </div>
                     </div>
