@@ -11,9 +11,10 @@ interface Usuario {
 
 interface AuthContextType {
   usuario: Usuario | null;
-  login: (email: string, senha: string, cargo: Cargo) => Promise<void>;
+  login: (email: string, senha: string) => Promise<void>;
   logout: () => void;
   temPermissao: (modulo: keyof typeof PERMISSOES_POR_CARGO.PASTOR, nivel?: "total" | "leitura") => boolean;
+  getRotaPadrão: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,12 +25,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return stored ? JSON.parse(stored) : null;
   });
 
-  const login = async (email: string, senha: string, cargo: Cargo) => {
+  const login = async (email: string, senha: string) => {
     try {
       const response = await apiRequest("POST", "/api/auth/login", {
         email,
         senha,
-        cargo,
       });
 
       if (!response.ok) {
@@ -58,8 +58,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return permissaoModulo === "total" || permissaoModulo === "leitura";
   };
 
+  const getRotaPadrão = () => {
+    if (!usuario) return "/login";
+    
+    // Define a rota padrão baseada no cargo
+    switch (usuario.cargo) {
+      case "PASTOR":
+        return "/"; // Dashboard com acesso a tudo
+      case "PRESBITERO":
+        return "/pastoral"; // Painel principal: Pastoral
+      case "TESOUREIRO":
+        return "/financeiro"; // Painel principal: Financeiro
+      case "DIACONO":
+        return "/diaconal"; // Painel principal: Diaconal
+      default:
+        return "/";
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ usuario, login, logout, temPermissao }}>
+    <AuthContext.Provider value={{ usuario, login, logout, temPermissao, getRotaPadrão }}>
       {children}
     </AuthContext.Provider>
   );

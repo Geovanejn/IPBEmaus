@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -24,8 +25,11 @@ import {
   Calendar,
   User,
   Loader2,
+  UserPlus,
+  Mail,
+  Phone,
 } from "lucide-react";
-import { type AcaoDiaconal, type Usuario, insertAcaoDiaconalSchema } from "@shared/schema";
+import { type AcaoDiaconal, type Usuario, type Visitante, insertAcaoDiaconalSchema, insertVisitanteSchema } from "@shared/schema";
 
 const acaoDiaconalFormSchema = insertAcaoDiaconalSchema.extend({
   valorGasto: z.union([z.string(), z.number(), z.null()]).transform((val) => {
@@ -39,11 +43,14 @@ const acaoDiaconalFormSchema = insertAcaoDiaconalSchema.extend({
 });
 
 type AcaoDiaconalFormData = z.infer<typeof acaoDiaconalFormSchema>;
+type VisitanteFormData = z.infer<typeof insertVisitanteSchema>;
 
 export default function Diaconal() {
   const { usuario, temPermissao } = useAuth();
   const { toast } = useToast();
   const [dialogNovaAcao, setDialogNovaAcao] = useState(false);
+  const [dialogNovoVisitante, setDialogNovoVisitante] = useState(false);
+  const [abaAtiva, setAbaAtiva] = useState("acoes");
 
   const podeEditar = temPermissao("diaconal", "total");
 
@@ -53,6 +60,10 @@ export default function Diaconal() {
 
   const { data: usuarios = [], isError: isErrorUsuarios, refetch: refetchUsuarios } = useQuery<Usuario[]>({
     queryKey: ["/api/usuarios"],
+  });
+
+  const { data: visitantes = [], isLoading: isLoadingVisitantes, isError: isErrorVisitantes, refetch: refetchVisitantes } = useQuery<Visitante[]>({
+    queryKey: ["/api/visitantes"],
   });
 
   const form = useForm<AcaoDiaconalFormData>({
@@ -67,6 +78,22 @@ export default function Diaconal() {
       data: new Date().toISOString().split("T")[0],
       responsavelId: usuario?.id || "",
       observacoes: null,
+    },
+  });
+
+  const formVisitante = useForm<VisitanteFormData>({
+    resolver: zodResolver(insertVisitanteSchema),
+    defaultValues: {
+      nome: "",
+      email: null,
+      telefone: null,
+      endereco: null,
+      comoConheceu: null,
+      membroConvidouId: null,
+      dataVisita: new Date().toISOString().split("T")[0],
+      observacoes: null,
+      status: "novo",
+      consentimentoLGPD: true,
     },
   });
 
@@ -89,6 +116,29 @@ export default function Diaconal() {
         variant: "destructive",
         title: "Erro ao registrar ação",
         description: "Ocorreu um erro ao salvar a ação. Tente novamente.",
+      });
+    },
+  });
+
+  const criarVisitanteMutation = useMutation({
+    mutationFn: async (dados: VisitanteFormData) => {
+      const res = await apiRequest("POST", "/api/visitantes", dados);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/visitantes"] });
+      toast({
+        title: "Visitante cadastrado",
+        description: "O visitante foi cadastrado com sucesso",
+      });
+      setDialogNovoVisitante(false);
+      formVisitante.reset();
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Erro ao cadastrar visitante",
+        description: "Ocorreu um erro ao salvar o visitante. Tente novamente.",
       });
     },
   });
@@ -169,16 +219,26 @@ export default function Diaconal() {
   return (
     <div className="space-y-6">
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Heart className="w-8 h-8" />
-            Módulo Diaconal
-          </h1>
-          <p className="text-muted-foreground mt-1">Registro de ações sociais e assistência</p>
-        </div>
-        {podeEditar && (
-          <Dialog open={dialogNovaAcao} onOpenChange={setDialogNovaAcao}>
+      <div>
+        <h1 className="text-3xl font-bold flex items-center gap-2">
+          <Heart className="w-8 h-8" />
+          Módulo Diaconal
+        </h1>
+        <p className="text-muted-foreground mt-1">Registro de ações sociais e assistência</p>
+      </div>
+
+      {/* Tabs */}
+      <Tabs value={abaAtiva} onValueChange={setAbaAtiva} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="acoes" data-testid="tab-acoes">Ações Diaconais</TabsTrigger>
+          <TabsTrigger value="visitantes" data-testid="tab-visitantes">Visitantes</TabsTrigger>
+        </TabsList>
+
+        {/* Aba de Ações Diaconais */}
+        <TabsContent value="acoes" className="space-y-6">
+          <div className="flex items-center justify-end gap-4 flex-wrap">
+            {podeEditar && (
+              <Dialog open={dialogNovaAcao} onOpenChange={setDialogNovaAcao}>
             <DialogTrigger asChild>
               <Button data-testid="button-nova-acao">
                 <Plus className="w-4 h-4 mr-2" />
@@ -419,7 +479,7 @@ export default function Diaconal() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {acoes
+            {acoesComResponsavel
               .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
               .map((acao) => {
                 const TipoIcon = tipoIcons[acao.tipo as keyof typeof tipoIcons];
@@ -496,6 +556,209 @@ export default function Diaconal() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        {/* Aba de Visitantes */}
+        <TabsContent value="visitantes" className="space-y-6">
+          <div className="flex items-center justify-end gap-4 flex-wrap">
+            {podeEditar && (
+              <Dialog open={dialogNovoVisitante} onOpenChange={setDialogNovoVisitante}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-novo-visitante">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Cadastrar Visitante
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Cadastrar Novo Visitante</DialogTitle>
+                    <DialogDescription>
+                      Registre informações do visitante para acompanhamento diaconal
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...formVisitante}>
+                    <form onSubmit={formVisitante.handleSubmit((data) => criarVisitanteMutation.mutate(data))} className="space-y-4 mt-4">
+                      <FormField
+                        control={formVisitante.control}
+                        name="nome"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome Completo *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Nome do visitante" {...field} data-testid="input-nome-visitante" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={formVisitante.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>E-mail</FormLabel>
+                              <FormControl>
+                                <Input type="email" placeholder="email@exemplo.com" {...field} value={field.value || ""} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={formVisitante.control}
+                          name="telefone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Telefone</FormLabel>
+                              <FormControl>
+                                <Input placeholder="(11) 98765-4321" {...field} value={field.value || ""} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={formVisitante.control}
+                        name="endereco"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Endereço</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Rua, número, bairro" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={formVisitante.control}
+                          name="dataVisita"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Data da Visita *</FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={formVisitante.control}
+                          name="comoConheceu"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Como conheceu a igreja?</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Ex: Convite de membro, redes sociais..." {...field} value={field.value || ""} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={formVisitante.control}
+                        name="observacoes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Observações</FormLabel>
+                            <FormControl>
+                              <Textarea placeholder="Informações adicionais" rows={3} {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button type="button" variant="outline" onClick={() => setDialogNovoVisitante(false)}>
+                          Cancelar
+                        </Button>
+                        <Button type="submit" disabled={criarVisitanteMutation.isPending} data-testid="button-salvar-visitante">
+                          {criarVisitanteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                          Cadastrar
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+
+          {/* Lista de Visitantes */}
+          {isLoadingVisitantes ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : isErrorVisitantes ? (
+            <div className="flex flex-col items-center justify-center h-32 gap-4">
+              <p className="text-destructive">Erro ao carregar visitantes.</p>
+              <Button onClick={() => refetchVisitantes()} variant="outline">Tentar Novamente</Button>
+            </div>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserPlus className="w-5 h-5" />
+                  Visitantes Registrados
+                </CardTitle>
+                <CardDescription>Total: {visitantes.length} visitantes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {visitantes.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">Nenhum visitante cadastrado</p>
+                ) : (
+                  <div className="space-y-4">
+                    {visitantes.map((visitante) => (
+                      <div key={visitante.id} className="p-4 border rounded-lg space-y-2 hover-elevate" data-testid={`visitante-${visitante.id}`}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <h4 className="font-semibold">{visitante.nome}</h4>
+                            <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
+                              {visitante.email && (
+                                <span className="flex items-center gap-1">
+                                  <Mail className="w-3 h-3" />
+                                  {visitante.email}
+                                </span>
+                              )}
+                              {visitante.telefone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="w-3 h-3" />
+                                  {visitante.telefone}
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(visitante.dataVisita).toLocaleDateString("pt-BR")}
+                              </span>
+                            </div>
+                          </div>
+                          <Badge variant={visitante.status === "novo" ? "default" : "secondary"}>
+                            {visitante.status === "novo" ? "Novo" : visitante.status === "em_acompanhamento" ? "Em Acompanhamento" : visitante.status}
+                          </Badge>
+                        </div>
+                        {visitante.endereco && (
+                          <p className="text-sm text-muted-foreground">📍 {visitante.endereco}</p>
+                        )}
+                        {visitante.comoConheceu && (
+                          <p className="text-sm text-muted-foreground">ℹ️ {visitante.comoConheceu}</p>
+                        )}
+                        {visitante.observacoes && (
+                          <p className="text-sm mt-2 p-3 bg-muted/30 rounded-md">{visitante.observacoes}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

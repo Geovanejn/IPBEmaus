@@ -5,24 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { type Cargo, CARGOS } from "@shared/schema";
-import { Church, Lock, Mail, UserCircle } from "lucide-react";
+import { Church, Lock, Mail } from "lucide-react";
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const { login } = useAuth();
+  const { login, getRotaPadrão } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [cargo, setCargo] = useState<Cargo | "">("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !senha || !cargo) {
+    if (!email || !senha) {
       toast({
         variant: "destructive",
         title: "Campos obrigatórios",
@@ -33,12 +30,12 @@ export default function Login() {
 
     setLoading(true);
     try {
-      await login(email, senha, cargo as Cargo);
+      await login(email, senha);
       toast({
         title: "Login realizado com sucesso",
         description: `Bem-vindo(a) ao Sistema IPB Emaús!`,
       });
-      setLocation("/");
+      setLocation(getRotaPadrão());
     } catch (error) {
       toast({
         variant: "destructive",
@@ -48,13 +45,6 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const cargoLabels: Record<Cargo, string> = {
-    PASTOR: "Pastor",
-    PRESBITERO: "Presbítero",
-    TESOUREIRO: "Tesoureiro",
-    DIACONO: "Diácono",
   };
 
   return (
@@ -100,25 +90,6 @@ export default function Login() {
                   className="pl-10"
                   data-testid="input-senha"
                 />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cargo">Cargo</Label>
-              <div className="relative">
-                <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
-                <Select value={cargo} onValueChange={(value) => setCargo(value as Cargo)}>
-                  <SelectTrigger id="cargo" className="pl-10" data-testid="select-cargo">
-                    <SelectValue placeholder="Selecione seu cargo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CARGOS.map((c) => (
-                      <SelectItem key={c} value={c} data-testid={`cargo-${c.toLowerCase()}`}>
-                        {cargoLabels[c]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 

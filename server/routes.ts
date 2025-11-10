@@ -18,11 +18,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== AUTENTICAÇÃO ====================
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, senha, cargo } = req.body;
+      const { email, senha } = req.body;
       
       const usuario = await storage.getUsuarioPorEmail(email);
       
-      if (!usuario || usuario.senha !== senha || usuario.cargo !== cargo) {
+      if (!usuario || usuario.senha !== senha) {
         return res.status(401).json({ message: "Credenciais inválidas" });
       }
 
