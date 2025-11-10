@@ -1,0 +1,194 @@
+# 🧾 Technical Specification — Sistema Integrado IPB Emaús
+
+*(For Replit AI Developer — please read carefully before implementation)*
+
+---
+
+## ⚠️ Important Language Instruction
+
+> 🔹 **All user-facing content (frontend, PDFs, notifications, reports, emails, forms, and system messages) must be written in Brazilian Portuguese (pt-BR).**
+> 🔹 Communicate with the project owner **in Portuguese**.
+> 🔹 Never generate code, text, or variable names in English for visible components.
+
+---
+
+## 🏗️ System Overview
+
+A **plataforma integrada IPB Emaús** centraliza todas as áreas administrativas e ministeriais da igreja em um único sistema. Os módulos principais são:
+
+1. **Módulo Pastoral** — Gestão de membros, famílias e visitantes.
+2. **Módulo Financeiro** — Controle de receitas e despesas internas (sem emissão de NF).
+3. **Módulo Diaconal** — Registro de ações sociais e visitantes.
+4. **Módulo de Boletim Dominical** — Criação e publicação de boletins semanais.
+5. **Módulo de Secretaria de Atas** — Registro de reuniões e deliberações oficiais.
+
+---
+
+## 🔐 Authentication and Roles
+
+Somente quatro cargos têm acesso autenticado ao sistema:
+
+1. **PASTOR**
+2. **PRESBÍTERO**
+3. **TESOUREIRO**
+4. **DIÁCONO**
+
+### Permissões
+
+| Cargo          | Permissões                                                                             |
+| -------------- | -------------------------------------------------------------------------------------- |
+| **PASTOR**     | Acesso total a todos os módulos, criação e edição de registros pastorais e aprovações. |
+| **PRESBÍTERO** | Acesso ao Pastoral, Atas e Boletins; leitura no Financeiro.                            |
+| **TESOUREIRO** | Controle total do Financeiro, leitura no Diaconal e Pastoral.                          |
+| **DIÁCONO**    | Registro e acompanhamento no módulo Diaconal; leitura em Boletins.                     |
+
+### Campos da Tela de Login
+
+* E-mail
+* Senha
+* Cargo (Pastor, Presbítero, Tesoureiro, Diácono)
+
+---
+
+## 🧱 Arquitetura do Sistema
+
+* **Backend:** Node.js + Express + TypeScript
+* **Frontend:** React + Vite + TailwindCSS (interface 100% em português)
+* **Banco:** PostgreSQL (Render ou Neon)
+* **Storage:** Cloudflare R2 ou Supabase (PDFs, imagens, recibos)
+* **E-mail:** Resend (para envio de notificações e boletins)
+* **Deploy:** Render ou Replit Hosting
+* **Integração:** Power BI (via exportação CSV)
+
+---
+
+## 🕊️ Módulo Pastoral
+
+**Função:** Gerir membros, famílias e visitantes com acompanhamento pastoral.
+
+**Fluxo Operacional:**
+
+1. **Pastor ou Presbítero** cadastra o membro ou visitante.
+2. **Visitante** pode ser vinculado a um membro que o convidou.
+3. **Notas Pastorais** são registradas apenas por Pastor e visíveis conforme nível de sigilo.
+4. **Relatórios** podem ser gerados com aniversariantes, presença e crescimento.
+
+**Frontend:** “Cadastrar Membro”, “Cadastrar Visitante”, “Notas Pastorais”, “Relatórios”.
+
+---
+
+## 💰 Módulo Financeiro
+
+**Função:** Controlar entradas, saídas e relatórios financeiros sem emissão de NF.
+
+**Fluxo Operacional:**
+
+1. **Tesoureiro** cadastra dízimos, ofertas e despesas.
+2. **Pastor e Presbítero** podem visualizar relatórios consolidados.
+3. **Despesas** vindas do Diaconal são vinculadas automaticamente ao centro de custo Social.
+4. **Exportação Power BI** gera dashboards de movimentações financeiras.
+
+**Frontend:** “Lançar Dízimo”, “Registrar Despesa”, “Relatório Financeiro”, “Gerar Recibo”.
+
+---
+
+## 🤝 Módulo Diaconal
+
+**Função:** Registrar ações sociais e acompanhamento de visitantes.
+
+**Fluxo Operacional:**
+
+1. **Diácono** registra visitantes com dados de contato e membro que convidou.
+2. Registra ações de ajuda (cesta básica, oração, visita etc).
+3. Se houver valor financeiro, o sistema cria uma despesa automática no módulo Financeiro.
+4. **Relatórios Diaconais** são enviados ao Conselho.
+
+**Frontend:** “Registrar Ajuda”, “Visitantes”, “Histórico de Ações”, “Escala Diaconal”.
+
+---
+
+## 📰 Módulo Boletim Dominical
+
+**Função:** Criar e publicar o boletim semanal impresso e digital.
+
+**Fluxo Operacional:**
+
+1. **Pastor ou Presbítero** insere devocional e eventos da semana.
+2. **Boletim** importa automaticamente aniversariantes e visitantes do módulo Pastoral.
+3. **PDF** é gerado com QR Code e salvo no storage.
+4. **Diácono e Tesoureiro** podem visualizar, mas não editar.
+
+**Frontend:** “Novo Boletim”, “Eventos da Semana”, “Pedidos de Oração”, “Publicar Boletim”.
+
+---
+
+## 📝 Módulo Secretaria de Atas
+
+**Função:** Registrar atas de reuniões e decisões oficiais.
+
+**Fluxo Operacional:**
+
+1. **Presbítero ou Pastor** cria uma nova reunião e sua respectiva ata.
+2. Após aprovação, a ata é bloqueada e salva em formato PDF/A.
+3. Relatórios são exportados para o Power BI.
+
+**Frontend:** “Nova Ata”, “Aprovar Ata”, “Reuniões”, “Exportar PDF”.
+
+---
+
+## 📊 Integração com Power BI
+
+Todos os módulos exportam dados consolidados em CSV/JSON:
+
+* Pastoral: Membros, Visitantes, Presença
+* Financeiro: Receitas, Despesas, Saldos
+* Diaconal: Ações Sociais
+* Secretaria: Atas e Reuniões
+* Boletim: Publicações e eventos
+
+---
+
+## ⚖️ LGPD e Segurança
+
+* Consentimento explícito no cadastro de membros e visitantes.
+* Dados sensíveis visíveis apenas a cargos autorizados.
+* Criptografia e logs de auditoria para exclusão/edição.
+* Exportação e exclusão de dados mediante solicitação.
+
+---
+
+## ⚙️ Variáveis de Ambiente (Replit)
+
+```
+DATABASE_URL=
+JWT_SECRET=
+JWT_REFRESH_SECRET=
+RESEND_API_KEY=
+STORAGE_PROVIDER=r2
+STORAGE_BUCKET=
+STORAGE_ACCESS_KEY=
+STORAGE_SECRET_KEY=
+POWERBI_API_KEY=
+```
+
+---
+
+## 🔄 Comunicação entre Módulos
+
+| Origem     | Destino    | Função                              |
+| ---------- | ---------- | ----------------------------------- |
+| Pastoral   | Boletim    | Enviar aniversariantes e visitantes |
+| Diaconal   | Financeiro | Registrar despesas de assistência   |
+| Financeiro | Power BI   | Exportar movimentações e balanços   |
+| Secretaria | Power BI   | Exportar dados de reuniões          |
+
+---
+
+## ✅ Considerações Finais
+
+* Somente quatro cargos terão autenticação: **Pastor, Presbítero, Tesoureiro e Diácono**.
+* Toda a interface e conteúdo devem estar em **português do Brasil**.
+* Comunicação com **Geovane Nascimento** deve ser feita **em português**.
+* Nenhum texto ou código visível deve estar em inglês.
+* Seguir integralmente o modelo de estrutura da **Igreja Presbiteriana do Brasil (IPB)** e os princípios da **LGPD**.
+*
