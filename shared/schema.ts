@@ -130,6 +130,58 @@ export type InsertAcaoDiaconal = z.infer<typeof insertAcaoDiaconalSchema>;
 export type AcaoDiaconal = typeof acoesDiaconais.$inferSelect;
 
 // ==================== MÓDULO BOLETIM DOMINICAL ====================
+
+// Tipos para campos JSONB do boletim
+export const itemLiturgiaSchema = z.object({
+  tipo: z.enum(['preludio', 'hino', 'leitura', 'oracao', 'cantico', 'mensagem', 'benção', 'amem', 'posludio', 'aviso']),
+  conteudo: z.string(),
+  numero: z.string().optional(), // Número do hino, por exemplo
+  referencia: z.string().optional(), // Referência bíblica, por exemplo
+});
+
+export const liturgiaSchema = z.array(itemLiturgiaSchema);
+
+export const pedidoOracaoSchema = z.object({
+  categoria: z.enum(['conversao', 'direcao_divina', 'emprego', 'saude', 'igreja', 'outros']),
+  descricao: z.string(),
+});
+
+export const pedidosOracaoSchema = z.array(pedidoOracaoSchema);
+
+export const aniversarioMembroSchema = z.object({
+  nome: z.string(),
+  data: z.string(),
+});
+
+export const aniversariosCasamentoSchema = z.object({
+  casal: z.string(),
+  data: z.string(),
+  bodas: z.string().optional(), // "25 anos", "Bodas de Prata", etc
+});
+
+export const domingoEbdSchema = z.object({
+  data: z.string(),
+  presentes: z.number(),
+  ausentes: z.number(),
+  visitantes: z.number(),
+  biblias: z.number(),
+});
+
+export const relatorioEbdSchema = z.object({
+  matriculados: z.number(),
+  domingos: z.array(domingoEbdSchema),
+});
+
+export const semanaOracaoSchema = z.object({
+  dataInicio: z.string(),
+  dataFim: z.string(),
+  programacao: z.array(z.object({
+    dia: z.string(),
+    horario: z.string(),
+    tema: z.string(),
+  })),
+});
+
 export const boletins = pgTable("boletins", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   data: date("data").notNull(),
@@ -140,24 +192,24 @@ export const boletins = pgTable("boletins", {
   ofertaDia: text("oferta_dia"),
   
   // Semana de Oração (opcional)
-  semanaOracao: jsonb("semana_oracao"), // { dataInicio, dataFim, programacao: [{dia, horario, tema}] }
+  semanaOracao: jsonb("semana_oracao").$type<z.infer<typeof semanaOracaoSchema>>(),
   
   // SAF e Eventos Especiais
   saf: text("saf"),
   eventos: text("eventos").array(),
   
   // Aniversários
-  aniversariosMembros: jsonb("aniversarios_membros"), // [{nome, data, tipo}] - será populado automaticamente
-  aniversariosCasamento: jsonb("aniversarios_casamento"), // [{nomes, data, bodas}]
+  aniversariosMembros: jsonb("aniversarios_membros").$type<z.infer<typeof aniversarioMembroSchema>[]>(),
+  aniversariosCasamento: jsonb("aniversarios_casamento").$type<z.infer<typeof aniversariosCasamentoSchema>[]>(),
   
-  // Pedidos de Oração (será estruturado na FASE 2)
-  pedidosOracao: text("pedidos_oracao").array(),
+  // Pedidos de Oração estruturados
+  pedidosOracao: jsonb("pedidos_oracao").$type<z.infer<typeof pedidosOracaoSchema>>(),
   
   // Relatório EBD
-  relatorioEbd: jsonb("relatorio_ebd"), // { matriculados, domingos: [{data, presentes, ausentes, visitantes, biblias}] }
+  relatorioEbd: jsonb("relatorio_ebd").$type<z.infer<typeof relatorioEbdSchema>>(),
   
   // Liturgia do Culto
-  liturgia: jsonb("liturgia"), // Array de itens na ordem: [{tipo: 'preludio|hino|leitura|oracao|etc', conteudo}]
+  liturgia: jsonb("liturgia").$type<z.infer<typeof liturgiaSchema>>(),
   
   // Devocional/Mensagem
   tituloMensagem: text("titulo_mensagem").notNull(),
@@ -174,9 +226,23 @@ export const boletins = pgTable("boletins", {
   criadoEm: timestamp("criado_em").notNull().defaultNow(),
 });
 
-export const insertBoletimSchema = createInsertSchema(boletins).omit({ id: true, criadoEm: true });
+export const insertBoletimSchema = createInsertSchema(boletins).omit({ id: true, criadoEm: true }).extend({
+  liturgia: liturgiaSchema.optional(),
+  pedidosOracao: pedidosOracaoSchema.optional(),
+  aniversariosMembros: z.array(aniversarioMembroSchema).optional(),
+  aniversariosCasamento: z.array(aniversariosCasamentoSchema).optional(),
+  relatorioEbd: relatorioEbdSchema.optional(),
+  semanaOracao: semanaOracaoSchema.optional(),
+});
+
 export type InsertBoletim = z.infer<typeof insertBoletimSchema>;
 export type Boletim = typeof boletins.$inferSelect;
+export type ItemLiturgia = z.infer<typeof itemLiturgiaSchema>;
+export type PedidoOracao = z.infer<typeof pedidoOracaoSchema>;
+export type AniversarioMembro = z.infer<typeof aniversarioMembroSchema>;
+export type AniversarioCasamento = z.infer<typeof aniversariosCasamentoSchema>;
+export type RelatorioEbd = z.infer<typeof relatorioEbdSchema>;
+export type SemanaOracao = z.infer<typeof semanaOracaoSchema>;
 
 // ==================== MÓDULO SECRETARIA DE ATAS ====================
 export const reunioes = pgTable("reunioes", {
