@@ -105,7 +105,12 @@ export default function Relatorios() {
       if (dataFim) params.append("dataFim", dataFim);
       const response = await fetch(`/api/relatorios/financeiro?${params.toString()}`);
       if (!response.ok) throw new Error("Erro ao carregar relatório financeiro");
-      return response.json();
+      const data = await response.json();
+      console.log("🔍 Dados do relatório financeiro:", data);
+      console.log("📊 Receitas por categoria:", data.receitasPorCategoria);
+      console.log("💸 Despesas por categoria:", data.despesasPorCategoria);
+      console.log("🏢 Por centro de custo:", data.porCentroCusto);
+      return data;
     },
     enabled: temPermissao("financeiro", "leitura") && !!dataInicio && !!dataFim,
   });
@@ -432,14 +437,20 @@ export default function Relatorios() {
                       <CardTitle>Receitas por Categoria</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
-                        {Object.entries(relatorioFinanceiro.receitasPorCategoria).map(([categoria, valor]: [string, any]) => (
-                          <div key={categoria} className="flex items-center justify-between">
-                            <span className="text-sm capitalize">{categoria.replace("_", " ")}</span>
-                            <span className="font-medium text-green-600">{formatarValor(valor)}</span>
-                          </div>
-                        ))}
-                      </div>
+                      {Object.keys(relatorioFinanceiro.receitasPorCategoria || {}).length > 0 ? (
+                        <div className="space-y-2">
+                          {Object.entries(relatorioFinanceiro.receitasPorCategoria).map(([categoria, valor]: [string, any]) => (
+                            <div key={categoria} className="flex items-center justify-between">
+                              <span className="text-sm capitalize">{categoria.replace("_", " ")}</span>
+                              <span className="font-medium text-green-600">{formatarValor(valor)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          Nenhuma receita registrada no período
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -448,14 +459,20 @@ export default function Relatorios() {
                       <CardTitle>Despesas por Categoria</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
-                        {Object.entries(relatorioFinanceiro.despesasPorCategoria).map(([categoria, valor]: [string, any]) => (
-                          <div key={categoria} className="flex items-center justify-between">
-                            <span className="text-sm capitalize">{categoria.replace("_", " ")}</span>
-                            <span className="font-medium text-red-600">{formatarValor(valor)}</span>
-                          </div>
-                        ))}
-                      </div>
+                      {Object.keys(relatorioFinanceiro.despesasPorCategoria || {}).length > 0 ? (
+                        <div className="space-y-2">
+                          {Object.entries(relatorioFinanceiro.despesasPorCategoria).map(([categoria, valor]: [string, any]) => (
+                            <div key={categoria} className="flex items-center justify-between">
+                              <span className="text-sm capitalize">{categoria.replace("_", " ")}</span>
+                              <span className="font-medium text-red-600">{formatarValor(valor)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          Nenhuma despesa registrada no período
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -465,23 +482,29 @@ export default function Relatorios() {
                     <CardTitle>Por Centro de Custo</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {Object.entries(relatorioFinanceiro.porCentroCusto).map(([centro, dados]: [string, any]) => (
-                        <div key={centro} className="p-3 bg-muted rounded-lg">
-                          <p className="font-medium capitalize mb-2">{centro}</p>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">Receitas: </span>
-                              <span className="font-medium text-green-600">{formatarValor(dados.receitas)}</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Despesas: </span>
-                              <span className="font-medium text-red-600">{formatarValor(dados.despesas)}</span>
+                    {Object.keys(relatorioFinanceiro.porCentroCusto || {}).length > 0 ? (
+                      <div className="space-y-3">
+                        {Object.entries(relatorioFinanceiro.porCentroCusto).map(([centro, dados]: [string, any]) => (
+                          <div key={centro} className="p-3 bg-muted rounded-lg">
+                            <p className="font-medium capitalize mb-2">{centro}</p>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Receitas: </span>
+                                <span className="font-medium text-green-600">{formatarValor(dados.receitas)}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Despesas: </span>
+                                <span className="font-medium text-red-600">{formatarValor(dados.despesas)}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Nenhum centro de custo registrado no período
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </>
