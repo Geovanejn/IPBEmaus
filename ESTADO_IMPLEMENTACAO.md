@@ -2,6 +2,334 @@
 
 ## ✅ Problemas Corrigidos Nesta Sessão
 
+### 0. Sistema LGPD Completo Implementado (NOVA FUNCIONALIDADE - 11/11/2025)
+**Implementação:** Sistema completo de conformidade LGPD com portal público para titulares de dados e área administrativa para gerenciamento de solicitações e logs.
+
+**Componentes Implementados:**
+
+#### 1. Portal LGPD Público (`/portal-lgpd`)
+**Arquivo:** `client/src/pages/portal-lgpd-publico.tsx`
+
+**Características:**
+- ✅ **Acesso sem autenticação**: Qualquer pessoa pode acessar
+- ✅ **Stepper de 3 etapas**: Fluxo guiado para solicitação de dados
+  - **Etapa 1 - Solicitar Código**: Formulário com CPF, nome, data nascimento e telefone
+  - **Etapa 2 - Validar Código**: Entrada de código de 6 dígitos recebido por SMS/e-mail
+  - **Etapa 3 - Ações**: Exportar dados (JSON) ou solicitar exclusão permanente
+
+**Segurança:**
+- ✅ Normalização automática de CPF (remove formatação antes do envio)
+- ✅ Session token de uso único com expiração de 30 minutos
+- ✅ Limite de 3 tentativas de validação de código
+- ✅ Código de verificação expira em 10 minutos
+- ✅ Session token armazenado em localStorage (auto-limpeza após ações)
+
+**UX:**
+- ✅ Design responsivo com gradiente azul/branco
+- ✅ Ícone Shield para identidade visual LGPD
+- ✅ Formatação automática de CPF no input
+- ✅ Feedback visual com toasts e alerts
+- ✅ Loading states em todas as ações
+- ✅ Mensagens claras sobre prazos e processos
+
+**Backend Integrado:**
+```typescript
+// Rotas públicas usadas:
+POST /api/lgpd/solicitar-codigo      // Envia código de verificação
+POST /api/lgpd/validar-codigo        // Valida código e cria session
+GET  /api/lgpd/exportar-dados        // Exporta dados do titular
+POST /api/lgpd/solicitar-exclusao    // Cria solicitação de exclusão
+```
+
+#### 2. Página Administrativa LGPD (`/lgpd-admin`)
+**Arquivo:** `client/src/pages/lgpd-admin.tsx`
+
+**Permissão:** Restrita ao cargo **PASTOR**
+
+**Características:**
+- ✅ **3 Tabs Principais**: Solicitações, Logs de Consentimento, Logs de Auditoria
+
+**Tab 1 - Solicitações:**
+- ✅ Lista todas as solicitações de acesso, exportação e exclusão
+- ✅ Filtros visuais por status: pendente, em andamento, concluída, recusada
+- ✅ Ações disponíveis:
+  - **Aprovar**: Exporta dados ou exclui permanentemente (com confirmação)
+  - **Recusar**: Exige justificativa obrigatória
+- ✅ Visualização de titular, tipo de solicitação, data e motivo
+- ✅ Badge visual para status e tipo de solicitação
+- ✅ Contador de solicitações pendentes no tab
+
+**Tab 2 - Logs de Consentimento:**
+- ✅ Histórico completo de alterações de consentimento LGPD
+- ✅ Rastreamento: Quem, Quando, IP, Estado anterior → Estado novo
+- ✅ Identificação do usuário responsável pela alteração (se aplicável)
+- ✅ Badges coloridos: Concedido (verde) / Revogado (vermelho)
+- ✅ Filtro por tipo de titular (membro/visitante)
+
+**Tab 3 - Logs de Auditoria:**
+- ✅ Histórico de todas as ações sensíveis no sistema
+- ✅ Informações: Módulo, Ação, Usuário, Cargo, IP, Descrição, Data
+- ✅ Rastreabilidade completa para compliance
+
+**Ações Administrativas:**
+- ✅ **Exportar dados de titular**: Download JSON com todos os dados
+- ✅ **Excluir dados permanentemente**: Hard delete com confirmação dupla
+- ✅ **Processar solicitação**: Atualiza status e registra justificativa
+- ✅ Dialog de confirmação para ações destrutivas
+- ✅ Loading states e feedback com toasts
+
+**Backend Integrado:**
+```typescript
+// Rotas administrativas usadas:
+GET    /api/lgpd/solicitacoes              // Lista solicitações
+POST   /api/lgpd/solicitacoes/:id/processar // Processa solicitação
+GET    /api/lgpd/exportar-titular/:tipo/:id // Exporta dados titular
+DELETE /api/lgpd/excluir-titular/:tipo/:id  // Exclui dados titular
+GET    /api/lgpd/logs-consentimento         // Lista logs consentimento
+GET    /api/lgpd/logs-auditoria             // Lista logs auditoria
+```
+
+#### 3. Sistema de Logs de Consentimento
+**Arquivo:** `server/routes.ts`
+
+**Helper Functions Implementadas:**
+```typescript
+// Extrai IP do request (com suporte a proxy)
+function obterIPAddress(req: Request): string | null {
+  return (
+    (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+    req.socket?.remoteAddress ||
+    null
+  );
+}
+
+// Registra alterações de consentimento LGPD
+async function registrarConsentimento(params: {
+  req: Request;
+  tipoTitular: "membro" | "visitante";
+  titularId: string;
+  titularNome: string;
+  consentimentoAnterior: boolean;
+  consentimentoNovo: boolean;
+  acao: "concedido" | "revogado";
+}): Promise<void> {
+  try {
+    const usuarioId = req.session?.userId || null;
+    const ipAddress = obterIPAddress(req);
+    
+    await storage.criarLogConsentimento({
+      tipoTitular: params.tipoTitular,
+      titularId: params.titularId,
+      titularNome: params.titularNome,
+      acao: params.acao,
+      consentimentoAnterior: params.consentimentoAnterior,
+      consentimentoNovo: params.consentimentoNovo,
+      usuarioId,
+      ipAddress,
+    });
+  } catch (error) {
+    console.error("Erro ao registrar consentimento:", error);
+    // Não interrompe o fluxo principal
+  }
+}
+```
+
+**Integração nas Rotas:**
+- ✅ **POST /api/membros**: Registra log quando `consentimentoLGPD = true`
+- ✅ **PATCH /api/membros/:id**: Compara consentimento anterior/novo e registra mudança
+- ✅ **POST /api/visitantes**: Registra log quando `consentimentoLGPD = true`
+- ✅ **PATCH /api/visitantes/:id**: Compara consentimento anterior/novo e registra mudança
+
+**Proteções:**
+- ✅ Try/catch para não quebrar fluxo principal
+- ✅ Captura de IP com fallback
+- ✅ Registro de usuário autenticado (se houver)
+- ✅ Logs automáticos sem intervenção manual
+
+#### 4. Rotas e Navegação
+**Arquivo:** `client/src/App.tsx`
+
+**Rotas Adicionadas:**
+```typescript
+// Rota pública (sem autenticação)
+<Route path="/portal-lgpd" component={PortalLGPDPublico} />
+
+// Rota administrativa (apenas PASTOR)
+{
+  path: "/lgpd-admin",
+  component: LGPDAdmin,
+  allowedCargos: ["PASTOR"],
+  name: "Gerenciamento LGPD",
+}
+```
+
+**Acessibilidade:**
+- ✅ `/portal-lgpd`: Disponível para qualquer pessoa (autenticada ou não)
+- ✅ `/lgpd-admin`: Restrita ao cargo PASTOR
+- ✅ Link automático no menu dropdown do header para PASTOR
+- ✅ Redirecionamento adequado baseado em permissões
+
+#### 5. Backend LGPD Completo
+**Arquivo:** `server/routes/lgpd-public.ts`
+
+**Rotas Públicas Implementadas:**
+```typescript
+POST /api/lgpd/solicitar-codigo
+  - Valida CPF (11 dígitos), nome, data nascimento
+  - Gera código de 6 dígitos aleatório
+  - Escolhe canal: SMS (se telefone informado) ou e-mail
+  - Armazena código com expiração de 10 minutos
+  - Retorna: { success: true, canal: "sms" | "email" }
+
+POST /api/lgpd/validar-codigo
+  - Valida CPF, data nascimento e código
+  - Verifica tentativas (máx 3) e expiração
+  - Busca titular (membro ou visitante) no banco
+  - Cria session token único com expiração de 30 minutos
+  - Retorna: { sessionToken, expiresAt, titular: { nome, tipo } }
+
+GET /api/lgpd/exportar-dados
+  - Requer header: x-lgpd-session
+  - Valida session token
+  - Exporta todos os dados do titular em JSON
+  - Invalida session após uso
+  - Retorna: { dados pessoais completos }
+
+POST /api/lgpd/solicitar-exclusao
+  - Requer header: x-lgpd-session
+  - Valida session token
+  - Cria solicitação de exclusão com status "pendente"
+  - Invalida session após uso
+  - Retorna: { solicitacao: { id, status, tipo } }
+```
+
+**Rotas Administrativas Implementadas:**
+```typescript
+GET /api/lgpd/solicitacoes
+  - Lista todas as solicitações LGPD
+  - Retorna: SolicitacaoLGPD[]
+
+POST /api/lgpd/solicitacoes/:id/processar
+  - Atualiza status: concluida | recusada
+  - Registra justificativa de recusa (se aplicável)
+  - Registra responsável (usuário autenticado)
+  - Retorna: { solicitacao atualizada }
+
+GET /api/lgpd/exportar-titular/:tipoTitular/:titularId
+  - Exporta dados completos de um titular específico
+  - tipoTitular: "membro" | "visitante"
+  - Retorna: { dados completos em JSON }
+
+DELETE /api/lgpd/excluir-titular/:tipoTitular/:titularId
+  - Exclui permanentemente dados do titular
+  - Requer body: { solicitacaoId }
+  - Registra exclusão nos logs de auditoria
+  - Retorna: { success: true }
+
+GET /api/lgpd/logs-consentimento
+  - Lista todos os logs de alteração de consentimento
+  - Retorna: LogConsentimento[]
+
+GET /api/lgpd/logs-auditoria
+  - Lista todos os logs de auditoria do sistema
+  - Retorna: LogAuditoria[]
+```
+
+#### 6. Schemas e Tipos
+**Validações Zod:**
+```typescript
+// Solicitação de código
+{
+  nome: z.string().min(3),
+  cpf: z.string().regex(/^\d{11}$/),
+  dataNascimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  telefone: z.string().optional(),
+}
+
+// Validação de código
+{
+  codigo: z.string().length(6).regex(/^\d{6}$/),
+  cpf: z.string().regex(/^\d{11}$/),
+  dataNascimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+}
+
+// Solicitação de exclusão
+{
+  motivo: z.string().optional(),
+}
+```
+
+**Tipos TypeScript:**
+```typescript
+interface SolicitacaoLGPD {
+  id: string;
+  tipo: "acesso" | "exportacao" | "exclusao";
+  status: "pendente" | "em_andamento" | "concluida" | "recusada";
+  tipoTitular: "membro" | "visitante";
+  titularId: string;
+  titularNome: string;
+  titularEmail: string;
+  motivo: string | null;
+  justificativaRecusa: string | null;
+  responsavelId: string | null;
+  dataAtendimento: string | null;
+  criadoEm: string;
+}
+
+interface LogConsentimento {
+  id: string;
+  tipoTitular: "membro" | "visitante";
+  titularId: string;
+  titularNome: string;
+  acao: "concedido" | "revogado";
+  consentimentoAnterior: boolean;
+  consentimentoNovo: boolean;
+  usuarioId: string | null;
+  ipAddress: string | null;
+  criadoEm: string;
+}
+
+interface LogAuditoria {
+  id: string;
+  modulo: string;
+  acao: string;
+  descricao: string;
+  registroId: string | null;
+  usuarioId: string;
+  usuarioNome: string;
+  usuarioCargo: string;
+  ipAddress: string | null;
+  criadoEm: string;
+}
+```
+
+#### 7. Conformidade LGPD Alcançada
+- ✅ **Art. 9º - Acesso aos dados**: Portal público permite titulares acessarem seus dados
+- ✅ **Art. 18, II - Exportação**: Titulares podem exportar dados em formato JSON
+- ✅ **Art. 18, VI - Exclusão**: Titulares podem solicitar exclusão de dados
+- ✅ **Art. 37 - Registro de operações**: Logs de consentimento e auditoria completos
+- ✅ **Art. 46 - Segurança**: Session tokens de uso único, validação em múltiplas camadas
+- ✅ **Transparência**: Interface clara sobre prazos e processos
+
+**Próximos Passos para Produção:**
+- ⏳ Integração com Twilio para envio de SMS real
+- ⏳ Integração com Resend para envio de e-mail real
+- ⏳ Rate limiting nas rotas públicas (prevenir abuso)
+- ⏳ Implementar CAPTCHA no formulário de solicitação
+- ⏳ Configurar HTTPS obrigatório em produção
+- ⏳ Backup automático de logs de auditoria
+
+**Arquivos Modificados/Criados:**
+```
+✅ client/src/pages/portal-lgpd-publico.tsx (novo)
+✅ client/src/pages/lgpd-admin.tsx (novo)
+✅ client/src/App.tsx (rotas adicionadas)
+✅ server/routes.ts (logs de consentimento integrados)
+✅ server/routes/lgpd-public.ts (rotas já existiam, validadas)
+```
+
+---
+
 ### 1. Vulnerabilidade de Segurança Crítica no Módulo LGPD (CORREÇÃO - 11/11/2025)
 **Problema:** As rotas LGPD permitiam acesso não autorizado aos dados de qualquer usuário através de um header `x-user-id` controlado pelo cliente. Qualquer pessoa poderia:
 - Acessar dados pessoais de outros usuários (GET /api/lgpd/meus-dados)

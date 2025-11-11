@@ -15,6 +15,8 @@ import SecretariaAtas from "@/pages/atas";
 import Relatorios from "@/pages/relatorios";
 import Usuarios from "@/pages/usuarios";
 import LGPD from "@/pages/lgpd";
+import PortalLGPDPublico from "@/pages/portal-lgpd-publico";
+import LGPDAdmin from "@/pages/lgpd-admin";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -93,6 +95,12 @@ const ROUTES: RouteConfig[] = [
     component: LGPD,
     allowedCargos: ["PASTOR", "PRESBITERO", "TESOUREIRO", "DIACONO"],
     name: "Privacidade",
+  },
+  {
+    path: "/lgpd-admin",
+    component: LGPDAdmin,
+    allowedCargos: ["PASTOR"],
+    name: "Gerenciamento LGPD",
   },
 ];
 
@@ -221,6 +229,7 @@ function Router() {
     return (
       <Switch>
         <Route path="/login" component={Login} />
+        <Route path="/portal-lgpd" component={PortalLGPDPublico} />
         <Route path="/">
           <Redirect to="/login" />
         </Route>
@@ -239,6 +248,9 @@ function Router() {
             <Route path="/login">
               <Redirect to={getRotaPadrão()} />
             </Route>
+            
+            {/* Rota pública do Portal LGPD */}
+            <Route path="/portal-lgpd" component={PortalLGPDPublico} />
             
             {/* Alias: /painel redireciona para / (Dashboard) */}
             <Route path="/painel">
