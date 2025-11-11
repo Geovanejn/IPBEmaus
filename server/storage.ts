@@ -31,6 +31,9 @@ export interface IStorage {
   getUsuario(id: string): Promise<Usuario | undefined>;
   getUsuarioPorEmail(email: string): Promise<Usuario | undefined>;
   criarUsuario(usuario: InsertUsuario): Promise<Usuario>;
+  atualizarUsuario(id: string, usuario: Partial<Usuario>): Promise<Usuario | undefined>;
+  atualizarSenhaUsuario(id: string, novaSenha: string): Promise<boolean>;
+  desativarUsuario(id: string): Promise<boolean>;
   
   // Membros
   getMembros(): Promise<Membro[]>;
@@ -296,6 +299,36 @@ export class DatabaseStorage implements IStorage {
     await this.ensureInitialized();
     const result = await db.select().from(schema.usuarios).where(eq(schema.usuarios.email, email)).limit(1);
     return result[0];
+  }
+
+  async atualizarUsuario(id: string, dados: Partial<Usuario>): Promise<Usuario | undefined> {
+    await this.ensureInitialized();
+    const result = await db
+      .update(schema.usuarios)
+      .set(dados)
+      .where(eq(schema.usuarios.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async atualizarSenhaUsuario(id: string, novaSenha: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await db
+      .update(schema.usuarios)
+      .set({ senha: novaSenha })
+      .where(eq(schema.usuarios.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async desativarUsuario(id: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await db
+      .update(schema.usuarios)
+      .set({ ativo: false })
+      .where(eq(schema.usuarios.id, id))
+      .returning();
+    return result.length > 0;
   }
 
   async criarUsuario(insertUsuario: InsertUsuario): Promise<Usuario> {

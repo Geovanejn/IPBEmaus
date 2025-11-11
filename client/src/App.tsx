@@ -13,6 +13,7 @@ import Diaconal from "@/pages/diaconal";
 import BoletimDominical from "@/pages/boletim";
 import SecretariaAtas from "@/pages/atas";
 import Relatorios from "@/pages/relatorios";
+import Usuarios from "@/pages/usuarios";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -79,6 +80,12 @@ const ROUTES: RouteConfig[] = [
     component: Relatorios,
     allowedCargos: ["PASTOR", "PRESBITERO", "TESOUREIRO", "DIACONO"],
     name: "Relatórios",
+  },
+  {
+    path: "/usuarios",
+    component: Usuarios,
+    allowedCargos: ["PASTOR"],
+    name: "Usuários",
   },
 ];
 

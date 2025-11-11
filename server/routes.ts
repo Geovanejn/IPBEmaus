@@ -55,6 +55,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/usuarios/:id", async (req, res) => {
+    try {
+      const usuario = await storage.getUsuario(req.params.id);
+      if (!usuario) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      const { senha, ...usuarioSemSenha } = usuario;
+      res.json(usuarioSemSenha);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar usuário" });
+    }
+  });
+
+  app.post("/api/usuarios", async (req, res) => {
+    try {
+      const dados = insertUsuarioSchema.parse(req.body);
+      const usuario = await storage.criarUsuario(dados);
+      const { senha, ...usuarioSemSenha } = usuario;
+      res.status(201).json(usuarioSemSenha);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Dados inválidos" });
+    }
+  });
+
+  app.patch("/api/usuarios/:id", async (req, res) => {
+    try {
+      const { senha, ...dadosSemSenha } = req.body;
+      const usuario = await storage.atualizarUsuario(req.params.id, dadosSemSenha);
+      if (!usuario) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      const { senha: _, ...usuarioSemSenha } = usuario;
+      res.json(usuarioSemSenha);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar usuário" });
+    }
+  });
+
+  app.patch("/api/usuarios/:id/senha", async (req, res) => {
+    try {
+      const { novaSenha } = req.body;
+      if (!novaSenha || novaSenha.length < 6) {
+        return res.status(400).json({ message: "Senha deve ter no mínimo 6 caracteres" });
+      }
+      const atualizado = await storage.atualizarSenhaUsuario(req.params.id, novaSenha);
+      if (!atualizado) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      res.json({ message: "Senha atualizada com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar senha" });
+    }
+  });
+
+  app.delete("/api/usuarios/:id", async (req, res) => {
+    try {
+      const desativado = await storage.desativarUsuario(req.params.id);
+      if (!desativado) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      res.json({ message: "Usuário desativado com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao desativar usuário" });
+    }
+  });
+
   // ==================== MEMBROS ====================
   app.get("/api/membros", async (req, res) => {
     try {

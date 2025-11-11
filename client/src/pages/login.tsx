@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Church, Lock, Mail } from "lucide-react";
+import logoIpbEmaus from "@assets/Logo IPE Completo sem fundo_1762855505939.png";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -50,14 +51,15 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Church className="w-10 h-10 text-primary" />
-            </div>
+        <CardHeader className="space-y-4 text-center">
+          <div className="flex justify-center">
+            <img 
+              src={logoIpbEmaus} 
+              alt="Logo IPB Emaús" 
+              className="h-24 w-auto"
+            />
           </div>
-          <CardTitle className="text-2xl font-bold">IPB Emaús</CardTitle>
-          <CardDescription>Sistema Integrado de Gestão Eclesiástica</CardDescription>
+          <CardDescription className="text-base">Sistema Integrado de Gestão Eclesiástica</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
