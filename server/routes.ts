@@ -35,6 +35,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Usuário inativo" });
       }
 
+      // Regenerar sessão para prevenir session fixation
+      await new Promise<void>((resolve, reject) => {
+        req.session.regenerate((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
       // Salvar userId na sessão para autenticação
       req.session.userId = usuario.id;
 
