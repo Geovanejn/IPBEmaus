@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { upload } from "./upload";
@@ -19,6 +19,42 @@ import {
   insertReuniaoSchema,
   insertAtaSchema,
 } from "@shared/schema";
+
+function obterIPAddress(req: Request): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.ip || 'unknown';
+}
+
+async function registrarConsentimento(params: {
+  req: Request;
+  tipoTitular: "membro" | "visitante";
+  titularId: string;
+  titularNome: string;
+  consentimentoAnterior: boolean;
+  consentimentoNovo: boolean;
+  acao: "concedido" | "revogado" | "atualizado";
+}) {
+  try {
+    const ipAddress = obterIPAddress(params.req);
+    const usuarioId = (params.req.session as any)?.userId;
+
+    await storage.registrarLogConsentimento({
+      tipoTitular: params.tipoTitular,
+      titularId: params.titularId,
+      titularNome: params.titularNome,
+      acao: params.acao,
+      consentimentoAnterior: params.consentimentoAnterior,
+      consentimentoNovo: params.consentimentoNovo,
+      usuarioId,
+      ipAddress,
+    });
+  } catch (error) {
+    console.error("Erro ao registrar log de consentimento:", error);
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== ROTAS PÚBLICAS LGPD ====================
@@ -161,6 +197,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const dados = insertMembroSchema.parse(req.body);
       const membro = await storage.criarMembro(dados);
+      
+      if (membro.consentimentoLGPD) {
+        await registrarConsentimento({
+          req,
+          tipoTitular: "membro",
+          titularId: membro.id,
+          titularNome: membro.nome,
+          consentimentoAnterior: false,
+          consentimentoNovo: true,
+          acao: "concedido",
+        });
+      }
+      
       res.status(201).json(membro);
     } catch (error: any) {
       res.status(400).json({ message: error.message || "Dados inválidos" });
@@ -169,10 +218,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/membros/:id", async (req, res) => {
     try {
+      const membroAnterior = await storage.getMembro(req.params.id);
+      if (!membroAnterior) {
+        return res.status(404).json({ message: "Membro não encontrado" });
+      }
+      
       const membro = await storage.atualizarMembro(req.params.id, req.body);
       if (!membro) {
         return res.status(404).json({ message: "Membro não encontrado" });
       }
+      
+      if (
+        req.body.consentimentoLGPD !== undefined &&
+        membroAnterior.consentimentoLGPD !== req.body.consentimentoLGPD
+      ) {
+        await registrarConsentimento({
+          req,
+          tipoTitular: "membro",
+          titularId: membro.id,
+          titularNome: membro.nome,
+          consentimentoAnterior: membroAnterior.consentimentoLGPD,
+          consentimentoNovo: membro.consentimentoLGPD,
+          acao: membro.consentimentoLGPD ? "concedido" : "revogado",
+        });
+      }
+      
       res.json(membro);
     } catch (error) {
       res.status(500).json({ message: "Erro ao atualizar membro" });
@@ -237,6 +307,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const dados = insertVisitanteSchema.parse(req.body);
       const visitante = await storage.criarVisitante(dados);
+      
+      if (visitante.consentimentoLGPD) {
+        await registrarConsentimento({
+          req,
+          tipoTitular: "visitante",
+          titularId: visitante.id,
+          titularNome: visitante.nome,
+          consentimentoAnterior: false,
+          consentimentoNovo: true,
+          acao: "concedido",
+        });
+      }
+      
       res.status(201).json(visitante);
     } catch (error: any) {
       res.status(400).json({ message: error.message || "Dados inválidos" });
@@ -245,10 +328,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/visitantes/:id", async (req, res) => {
     try {
+      const visitanteAnterior = await storage.getVisitante(req.params.id);
+      if (!visitanteAnterior) {
+        return res.status(404).json({ message: "Visitante não encontrado" });
+      }
+      
       const visitante = await storage.atualizarVisitante(req.params.id, req.body);
       if (!visitante) {
         return res.status(404).json({ message: "Visitante não encontrado" });
       }
+      
+      if (
+        req.body.consentimentoLGPD !== undefined &&
+        visitanteAnterior.consentimentoLGPD !== req.body.consentimentoLGPD
+      ) {
+        await registrarConsentimento({
+          req,
+          tipoTitular: "visitante",
+          titularId: visitante.id,
+          titularNome: visitante.nome,
+          consentimentoAnterior: visitanteAnterior.consentimentoLGPD,
+          consentimentoNovo: visitante.consentimentoLGPD,
+          acao: visitante.consentimentoLGPD ? "concedido" : "revogado",
+        });
+      }
+      
       res.json(visitante);
     } catch (error) {
       res.status(500).json({ message: "Erro ao atualizar visitante" });

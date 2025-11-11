@@ -189,8 +189,8 @@ export function registerPublicLgpdRoutes(app: Express) {
       // Enviar código
       const resultadoEnvio = await enviarCodigoVerificacao({
         titularNome: titular.nome,
-        telefone: titular.telefone || telefone,
-        email: titular.email,
+        telefone: titular.telefone || telefone || undefined,
+        email: titular.email || undefined,
       });
       
       if (!resultadoEnvio.success) {
@@ -218,7 +218,7 @@ export function registerPublicLgpdRoutes(app: Express) {
         hashedCodigo: resultadoEnvio.hashedCodigo,
         tipoTitular: tipo,
         titularId: titular.id,
-        telefone: resultadoEnvio.telefone ?? undefined,
+        telefone: resultadoEnvio.telefone || undefined,
         email: resultadoEnvio.email,
         canal: resultadoEnvio.canal,
         expiresAt,
@@ -489,7 +489,6 @@ export function registerPublicLgpdRoutes(app: Express) {
         titularNome: titular.nome,
         titularEmail: titular.email || "",
         motivo,
-        origem: "portal_publico",
       });
       
       // Revogar session token após uso
