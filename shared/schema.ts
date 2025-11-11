@@ -22,6 +22,7 @@ export type Usuario = typeof usuarios.$inferSelect;
 export const membros = pgTable("membros", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   nome: text("nome").notNull(),
+  cpf: text("cpf"), // Adicionado para LGPD público
   email: text("email"),
   telefone: text("telefone"),
   dataNascimento: date("data_nascimento"),
@@ -59,6 +60,8 @@ export type Familia = typeof familias.$inferSelect;
 export const visitantes = pgTable("visitantes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   nome: text("nome").notNull(),
+  cpf: text("cpf"), // Adicionado para LGPD público
+  dataNascimento: date("data_nascimento"), // Adicionado para LGPD público
   email: text("email"),
   telefone: text("telefone"),
   endereco: text("endereco"),
@@ -365,6 +368,44 @@ export interface ResultadoExclusaoTitular {
 export type Cargo = "PASTOR" | "PRESBITERO" | "TESOUREIRO" | "DIACONO";
 
 export const CARGOS: Cargo[] = ["PASTOR", "PRESBITERO", "TESOUREIRO", "DIACONO"];
+
+// ==================== LGPD PÚBLICO - VERIFICAÇÃO ====================
+export const verificationTokens = pgTable("verification_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  codigo: text("codigo").notNull(), // Código de 6 dígitos
+  tipoTitular: text("tipo_titular").notNull(), // membro, visitante
+  titularId: varchar("titular_id").notNull(),
+  telefone: text("telefone"), // Telefone que recebeu o SMS
+  email: text("email"), // Email que recebeu o código (fallback)
+  canal: text("canal").notNull(), // sms, email
+  tentativasValidacao: integer("tentativas_validacao").notNull().default(0),
+  validado: boolean("validado").notNull().default(false),
+  expiresAt: timestamp("expires_at").notNull(), // Expira em 10 minutos
+  validadoEm: timestamp("validado_em"),
+  criadoEm: timestamp("criado_em").notNull().defaultNow(),
+});
+
+export const insertVerificationTokenSchema = createInsertSchema(verificationTokens).omit({ id: true, criadoEm: true });
+export type InsertVerificationToken = z.infer<typeof insertVerificationTokenSchema>;
+export type VerificationToken = typeof verificationTokens.$inferSelect;
+
+export const lgpdAccessLogs = pgTable("lgpd_access_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tipoTitular: text("tipo_titular").notNull(), // membro, visitante
+  titularId: varchar("titular_id").notNull(),
+  titularNome: text("titular_nome").notNull(),
+  acao: text("acao").notNull(), // solicitar_codigo, validar_codigo, exportar_dados, solicitar_exclusao
+  canalVerificacao: text("canal_verificacao"), // sms, email
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  sucesso: boolean("sucesso").notNull().default(true),
+  motivoFalha: text("motivo_falha"),
+  criadoEm: timestamp("criado_em").notNull().defaultNow(),
+});
+
+export const insertLgpdAccessLogSchema = createInsertSchema(lgpdAccessLogs).omit({ id: true, criadoEm: true });
+export type InsertLgpdAccessLog = z.infer<typeof insertLgpdAccessLogSchema>;
+export type LgpdAccessLog = typeof lgpdAccessLogs.$inferSelect;
 
 export const PERMISSOES_POR_CARGO: Record<Cargo, {
   pastoral: "total" | "leitura" | "nenhum";
