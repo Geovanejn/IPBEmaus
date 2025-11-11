@@ -906,6 +906,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== LGPD ====================
+  app.get("/api/lgpd/meus-dados", async (req, res) => {
+    try {
+      // Em um sistema real, pegaria do session ou token
+      // Aqui vamos simular com um header
+      const usuarioId = req.headers["x-user-id"] as string;
+      
+      if (!usuarioId) {
+        return res.status(401).json({ message: "Não autenticado" });
+      }
+
+      const usuario = await storage.getUsuario(usuarioId);
+      if (!usuario) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      // Coletar todos os dados do usuário
+      const dadosUsuario = {
+        informacoesPessoais: {
+          nome: usuario.nome,
+          email: usuario.email,
+          cargo: usuario.cargo,
+          ativo: usuario.ativo,
+          criadoEm: usuario.criadoEm,
+        },
+        consentimento: {
+          lgpd: true, // Usuário concorda ao usar o sistema
+          dataConsentimento: usuario.criadoEm,
+        }
+      };
+
+      res.json(dadosUsuario);
+    } catch (error) {
+      console.error("Erro ao buscar dados LGPD:", error);
+      res.status(500).json({ message: "Erro ao buscar dados pessoais" });
+    }
+  });
+
+  app.get("/api/lgpd/exportar-dados", async (req, res) => {
+    try {
+      const usuarioId = req.headers["x-user-id"] as string;
+      
+      if (!usuarioId) {
+        return res.status(401).json({ message: "Não autenticado" });
+      }
+
+      const usuario = await storage.getUsuario(usuarioId);
+      if (!usuario) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      const { senha, ...usuarioSemSenha } = usuario;
+
+      const dadosCompletos = {
+        usuario: usuarioSemSenha,
+        dataExportacao: new Date().toISOString(),
+        formatoExportacao: "JSON",
+      };
+
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="meus-dados-${usuario.nome.replace(/\s/g, '_')}.json"`);
+      res.json(dadosCompletos);
+    } catch (error) {
+      console.error("Erro ao exportar dados:", error);
+      res.status(500).json({ message: "Erro ao exportar dados pessoais" });
+    }
+  });
+
+  app.post("/api/lgpd/solicitar-exclusao", async (req, res) => {
+    try {
+      const usuarioId = req.headers["x-user-id"] as string;
+      
+      if (!usuarioId) {
+        return res.status(401).json({ message: "Não autenticado" });
+      }
+
+      const usuario = await storage.getUsuario(usuarioId);
+      if (!usuario) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      // Em um sistema real, isso criaria um ticket/solicitação
+      // Por enquanto, vamos apenas desativar o usuário
+      const desativado = await storage.desativarUsuario(usuarioId);
+      
+      if (!desativado) {
+        return res.status(500).json({ message: "Erro ao processar solicitação" });
+      }
+
+      res.json({ 
+        message: "Solicitação de exclusão recebida com sucesso",
+        datasolicitacao: new Date().toISOString(),
+        status: "pendente",
+        prazoExclusao: "30 dias",
+      });
+    } catch (error) {
+      console.error("Erro ao solicitar exclusão:", error);
+      res.status(500).json({ message: "Erro ao processar solicitação de exclusão" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

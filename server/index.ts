@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
 import path from "path";
 import { fileURLToPath } from "url";
 import { registerRoutes } from "./routes";
@@ -11,11 +12,29 @@ const app = express();
 
 app.use('/uploads', express.static(path.join(__dirname, "..", "uploads")));
 
+declare module 'express-session' {
+  interface SessionData {
+    userId?: string;
+  }
+}
+
 declare module 'http' {
   interface IncomingMessage {
     rawBody: unknown
   }
 }
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'ipb-emaus-secret-key-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 dias
+  },
+}));
+
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;

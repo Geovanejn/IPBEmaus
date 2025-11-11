@@ -14,6 +14,7 @@ import BoletimDominical from "@/pages/boletim";
 import SecretariaAtas from "@/pages/atas";
 import Relatorios from "@/pages/relatorios";
 import Usuarios from "@/pages/usuarios";
+import LGPD from "@/pages/lgpd";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -86,6 +87,12 @@ const ROUTES: RouteConfig[] = [
     component: Usuarios,
     allowedCargos: ["PASTOR"],
     name: "Usuários",
+  },
+  {
+    path: "/lgpd",
+    component: LGPD,
+    allowedCargos: ["PASTOR", "PRESBITERO", "TESOUREIRO", "DIACONO"],
+    name: "Privacidade",
   },
 ];
 
