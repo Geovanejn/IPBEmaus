@@ -20,6 +20,61 @@ import {
   BarChart3,
 } from "lucide-react";
 
+interface RelatorioPastoral {
+  periodo: { dataInicio: string; dataFim: string };
+  resumo: {
+    totalMembros: number;
+    membrosAtivos: number;
+    novosMembrosPeriodo: number;
+    totalVisitantes: number;
+    aniversariantesMes: number;
+  };
+  visitantesPorStatus: {
+    novo: number;
+    em_acompanhamento: number;
+    membro: number;
+    inativo: number;
+  };
+  novosMembros: Array<{
+    nome: string;
+    email: string | null;
+    telefone: string | null;
+    dataCriacao: string;
+    status: string;
+  }>;
+}
+
+interface RelatorioFinanceiro {
+  periodo: { dataInicio: string; dataFim: string };
+  resumo: {
+    totalReceitas: number;
+    totalDespesas: number;
+    saldo: number;
+    totalTransacoes: number;
+  };
+  receitasPorCategoria: Record<string, number>;
+  despesasPorCategoria: Record<string, number>;
+  porCentroCusto: Record<string, { receitas: number; despesas: number }>;
+}
+
+interface RelatorioDiaconal {
+  periodo: { dataInicio: string; dataFim: string };
+  resumo: {
+    totalAcoes: number;
+    valorTotalGasto: number;
+    beneficiariosAtendidos: number;
+  };
+  acoesPorTipo: Record<string, number>;
+  acoes: Array<{
+    id: number;
+    tipo: string;
+    descricao: string;
+    beneficiario: string;
+    valorGasto: number;
+    data: string;
+  }>;
+}
+
 export default function Relatorios() {
   const { temPermissao } = useAuth();
   const { toast } = useToast();
@@ -27,20 +82,44 @@ export default function Relatorios() {
   const [dataFim, setDataFim] = useState("");
 
   // Query para relatório pastoral
-  const { data: relatorioPastoral, isLoading: loadingPastoral, refetch: refetchPastoral } = useQuery({
+  const { data: relatorioPastoral, isLoading: loadingPastoral, refetch: refetchPastoral } = useQuery<RelatorioPastoral>({
     queryKey: ["/api/relatorios/pastoral", dataInicio, dataFim],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (dataInicio) params.append("dataInicio", dataInicio);
+      if (dataFim) params.append("dataFim", dataFim);
+      const response = await fetch(`/api/relatorios/pastoral?${params.toString()}`);
+      if (!response.ok) throw new Error("Erro ao carregar relatório pastoral");
+      return response.json();
+    },
     enabled: temPermissao("pastoral", "leitura") && !!dataInicio && !!dataFim,
   });
 
   // Query para relatório financeiro
-  const { data: relatorioFinanceiro, isLoading: loadingFinanceiro, refetch: refetchFinanceiro } = useQuery({
+  const { data: relatorioFinanceiro, isLoading: loadingFinanceiro, refetch: refetchFinanceiro } = useQuery<RelatorioFinanceiro>({
     queryKey: ["/api/relatorios/financeiro", dataInicio, dataFim],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (dataInicio) params.append("dataInicio", dataInicio);
+      if (dataFim) params.append("dataFim", dataFim);
+      const response = await fetch(`/api/relatorios/financeiro?${params.toString()}`);
+      if (!response.ok) throw new Error("Erro ao carregar relatório financeiro");
+      return response.json();
+    },
     enabled: temPermissao("financeiro", "leitura") && !!dataInicio && !!dataFim,
   });
 
   // Query para relatório diaconal
-  const { data: relatorioDiaconal, isLoading: loadingDiaconal, refetch: refetchDiaconal } = useQuery({
+  const { data: relatorioDiaconal, isLoading: loadingDiaconal, refetch: refetchDiaconal } = useQuery<RelatorioDiaconal>({
     queryKey: ["/api/relatorios/diaconal", dataInicio, dataFim],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (dataInicio) params.append("dataInicio", dataInicio);
+      if (dataFim) params.append("dataFim", dataFim);
+      const response = await fetch(`/api/relatorios/diaconal?${params.toString()}`);
+      if (!response.ok) throw new Error("Erro ao carregar relatório diaconal");
+      return response.json();
+    },
     enabled: temPermissao("diaconal", "leitura") && !!dataInicio && !!dataFim,
   });
 
