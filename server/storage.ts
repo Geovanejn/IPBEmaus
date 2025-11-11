@@ -107,6 +107,23 @@ export interface IStorage {
   // LGPD - Logs de Auditoria
   registrarLogAuditoria(log: InsertLogAuditoria): Promise<LogAuditoria>;
   getLogsAuditoria(params?: { modulo?: string; acao?: string; usuarioId?: string; registroId?: string }): Promise<LogAuditoria[]>;
+  
+  // LGPD Público - Verificação de Identidade
+  buscarTitularPorIdentidade(params: {
+    nome: string;
+    cpf: string;
+    dataNascimento: string;
+  }): Promise<{ tipo: "membro" | "visitante"; titular: Membro | Visitante } | null>;
+  
+  // LGPD Público - Tokens de Verificação
+  criarVerificationToken(token: schema.InsertVerificationToken): Promise<schema.VerificationToken>;
+  buscarVerificationToken(codigo: string, titularId: string): Promise<schema.VerificationToken | undefined>;
+  validarVerificationToken(id: string): Promise<schema.VerificationToken | undefined>;
+  incrementarTentativasValidacao(id: string): Promise<void>;
+  
+  // LGPD Público - Logs de Acesso
+  registrarLgpdAccessLog(log: schema.InsertLgpdAccessLog): Promise<schema.LgpdAccessLog>;
+  getLogsAcessoLGPDPorTitular(tipoTitular: "membro" | "visitante", titularId: string): Promise<schema.LgpdAccessLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -701,6 +718,119 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await db.select().from(schema.logsAuditoria);
+  }
+
+  // ==================== LGPD PÚBLICO - MÉTODOS DE VERIFICAÇÃO ====================
+  
+  async buscarTitularPorIdentidade(params: {
+    nome: string;
+    cpf: string;
+    dataNascimento: string;
+  }): Promise<{ tipo: "membro" | "visitante"; titular: Membro | Visitante } | null> {
+    await this.ensureInitialized();
+    
+    // Normalizar CPF (apenas dígitos)
+    const cpfNormalizado = params.cpf.replace(/\D/g, '');
+    
+    // Normalizar nome (trim, uppercase)
+    const nomeNormalizado = params.nome.trim().toUpperCase();
+    
+    // Buscar em membros
+    const membros = await db.select().from(schema.membros)
+      .where(and(
+        eq(schema.membros.cpf, cpfNormalizado),
+        eq(schema.membros.dataNascimento, params.dataNascimento)
+      ));
+    
+    if (membros.length > 0) {
+      // Verificar nome (normalizado)
+      const membroEncontrado = membros.find(m => 
+        m.nome.trim().toUpperCase() === nomeNormalizado
+      );
+      
+      if (membroEncontrado) {
+        return { tipo: "membro", titular: membroEncontrado };
+      }
+    }
+    
+    // Buscar em visitantes
+    const visitantes = await db.select().from(schema.visitantes)
+      .where(and(
+        eq(schema.visitantes.cpf, cpfNormalizado),
+        eq(schema.visitantes.dataNascimento, params.dataNascimento)
+      ));
+    
+    if (visitantes.length > 0) {
+      // Verificar nome (normalizado)
+      const visitanteEncontrado = visitantes.find(v => 
+        v.nome.trim().toUpperCase() === nomeNormalizado
+      );
+      
+      if (visitanteEncontrado) {
+        return { tipo: "visitante", titular: visitanteEncontrado };
+      }
+    }
+    
+    return null;
+  }
+
+  async criarVerificationToken(token: schema.InsertVerificationToken): Promise<schema.VerificationToken> {
+    const result = await db.insert(schema.verificationTokens).values(token).returning();
+    return result[0];
+  }
+
+  async buscarVerificationToken(codigo: string, titularId: string): Promise<schema.VerificationToken | undefined> {
+    // Busca token não expirado e não validado
+    const tokens = await db.select().from(schema.verificationTokens)
+      .where(and(
+        eq(schema.verificationTokens.titularId, titularId),
+        eq(schema.verificationTokens.validado, false)
+      ));
+    
+    // Retorna apenas tokens não expirados
+    const agora = new Date();
+    const tokenValido = tokens.find(t => new Date(t.expiresAt) > agora);
+    
+    return tokenValido;
+  }
+
+  async validarVerificationToken(id: string): Promise<schema.VerificationToken | undefined> {
+    // Gera session token opaco (UUID)
+    const sessionToken = crypto.randomUUID();
+    const sessionExpiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutos
+    
+    const result = await db.update(schema.verificationTokens)
+      .set({
+        validado: true,
+        validadoEm: new Date(),
+        sessionToken,
+        sessionExpiresAt,
+      })
+      .where(eq(schema.verificationTokens.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  async incrementarTentativasValidacao(id: string): Promise<void> {
+    await db.update(schema.verificationTokens)
+      .set({
+        tentativasValidacao: sql`${schema.verificationTokens.tentativasValidacao} + 1`,
+      })
+      .where(eq(schema.verificationTokens.id, id));
+  }
+
+  async registrarLgpdAccessLog(log: schema.InsertLgpdAccessLog): Promise<schema.LgpdAccessLog> {
+    const result = await db.insert(schema.lgpdAccessLogs).values(log).returning();
+    return result[0];
+  }
+
+  async getLogsAcessoLGPDPorTitular(tipoTitular: "membro" | "visitante", titularId: string): Promise<schema.LgpdAccessLog[]> {
+    return await db.select().from(schema.lgpdAccessLogs)
+      .where(and(
+        eq(schema.lgpdAccessLogs.tipoTitular, tipoTitular),
+        eq(schema.lgpdAccessLogs.titularId, titularId)
+      ));
   }
 }
 

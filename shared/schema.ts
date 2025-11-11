@@ -372,7 +372,7 @@ export const CARGOS: Cargo[] = ["PASTOR", "PRESBITERO", "TESOUREIRO", "DIACONO"]
 // ==================== LGPD PÚBLICO - VERIFICAÇÃO ====================
 export const verificationTokens = pgTable("verification_tokens", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  codigo: text("codigo").notNull(), // Código de 6 dígitos
+  hashedCodigo: text("hashed_codigo").notNull(), // Código hasheado (bcrypt)
   tipoTitular: text("tipo_titular").notNull(), // membro, visitante
   titularId: varchar("titular_id").notNull(),
   telefone: text("telefone"), // Telefone que recebeu o SMS
@@ -380,6 +380,8 @@ export const verificationTokens = pgTable("verification_tokens", {
   canal: text("canal").notNull(), // sms, email
   tentativasValidacao: integer("tentativas_validacao").notNull().default(0),
   validado: boolean("validado").notNull().default(false),
+  sessionToken: varchar("session_token"), // Token opaco para autenticar operações
+  sessionExpiresAt: timestamp("session_expires_at"), // Expira em 30 minutos após validação
   expiresAt: timestamp("expires_at").notNull(), // Expira em 10 minutos
   validadoEm: timestamp("validado_em"),
   criadoEm: timestamp("criado_em").notNull().defaultNow(),
