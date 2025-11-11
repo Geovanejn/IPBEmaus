@@ -14,9 +14,7 @@ import BoletimDominical from "@/pages/boletim";
 import SecretariaAtas from "@/pages/atas";
 import Relatorios from "@/pages/relatorios";
 import Usuarios from "@/pages/usuarios";
-import LGPD from "@/pages/lgpd";
 import PortalLGPDPublico from "@/pages/portal-lgpd-publico";
-import LGPDAdmin from "@/pages/lgpd-admin";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -89,18 +87,6 @@ const ROUTES: RouteConfig[] = [
     component: Usuarios,
     allowedCargos: ["PASTOR"],
     name: "Usuários",
-  },
-  {
-    path: "/lgpd",
-    component: LGPD,
-    allowedCargos: ["PASTOR", "PRESBITERO", "TESOUREIRO", "DIACONO"],
-    name: "Privacidade",
-  },
-  {
-    path: "/lgpd-admin",
-    component: LGPDAdmin,
-    allowedCargos: ["PASTOR"],
-    name: "Gerenciamento LGPD",
   },
 ];
 
