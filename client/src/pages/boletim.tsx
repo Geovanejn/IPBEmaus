@@ -401,12 +401,23 @@ export default function BoletimDominical() {
   };
 
   const onSubmit = (data: BoletimFormData) => {
-    const boletimData = {
+    // Limpa os campos opcionais quando não estão ativos
+    const boletimData: any = {
       ...data,
       eventos: eventos.length > 0 ? eventos : [],
       avisos: avisos.length > 0 ? avisos : [],
       criadoPorId: usuario?.id || "",
+      // Remove campos opcionais desativados para evitar erros de validação
+      semanaOracao: semanaOracaoAtiva && data.semanaOracao ? data.semanaOracao : undefined,
+      relatorioEbd: relatorioEbdAtivo && data.relatorioEbd ? data.relatorioEbd : undefined,
     };
+    
+    // Remove propriedades undefined
+    Object.keys(boletimData).forEach(key => {
+      if (boletimData[key] === undefined) {
+        delete boletimData[key];
+      }
+    });
     
     // Verifica se está editando ou criando um novo boletim
     if (editandoBoletim) {
