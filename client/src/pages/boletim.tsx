@@ -13,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -31,6 +33,7 @@ import {
   Church,
   Heart,
   BookOpen,
+  Info,
 } from "lucide-react";
 import {
   type Boletim,
@@ -136,6 +139,7 @@ export default function BoletimDominical() {
   const { toast } = useToast();
   const [dialogNovoBoletim, setDialogNovoBoletim] = useState(false);
   const [editandoBoletim, setEditandoBoletim] = useState<Boletim | null>(null);
+  const [boletimDetalhado, setBoletimDetalhado] = useState<Boletim | null>(null);
   
   // Estados para campos dinâmicos simples (não estruturados)
   const [eventos, setEventos] = useState<string[]>([]);
@@ -1229,6 +1233,15 @@ export default function BoletimDominical() {
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBoletimDetalhado(boletim)}
+                      data-testid={`button-ver-detalhes-${boletim.id}`}
+                    >
+                      <Info className="w-4 h-4 mr-2" />
+                      Ver Detalhes
+                    </Button>
                     {boletim.pdfUrl && (
                       <Button variant="outline" size="sm" asChild data-testid={`link-pdf-${boletim.id}`}>
                         <a href={boletim.pdfUrl} target="_blank" rel="noopener noreferrer" download>
@@ -1343,6 +1356,206 @@ export default function BoletimDominical() {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Dialog de Detalhes do Boletim */}
+      {boletimDetalhado && (
+        <Dialog open={Boolean(boletimDetalhado)} onOpenChange={(open) => !open && setBoletimDetalhado(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh]" data-testid="dialog-detalhes-boletim">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Newspaper className="w-5 h-5" />
+                {boletimDetalhado.tituloMensagem}
+              </DialogTitle>
+              <DialogDescription>
+                {new Date(boletimDetalhado.data + "T00:00:00").toLocaleDateString("pt-BR", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })} - Edição nº {boletimDetalhado.numeroEdicao}/{boletimDetalhado.anoEdicao}
+              </DialogDescription>
+            </DialogHeader>
+
+            <ScrollArea className="max-h-[calc(90vh-120px)]">
+              <div className="space-y-6 pr-4">
+                {/* Cabeçalho e Mensagem */}
+                {boletimDetalhado.textoMensagem && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Church className="w-4 h-4" />
+                      Mensagem do Dia
+                    </h3>
+                    <Card className="p-4">
+                      <p className="text-sm font-medium mb-1">{boletimDetalhado.tituloMensagem}</p>
+                      <p className="text-sm text-muted-foreground italic">{boletimDetalhado.textoMensagem}</p>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Liturgia */}
+                {boletimDetalhado.liturgia && boletimDetalhado.liturgia.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" />
+                      Liturgia
+                    </h3>
+                    <Card className="p-4">
+                      <div className="space-y-2">
+                        {boletimDetalhado.liturgia.map((item: ItemLiturgia, idx: number) => (
+                          <div key={idx} className="flex items-start gap-2 text-sm" data-testid={`liturgia-item-${idx}`}>
+                            <span className="font-medium min-w-[120px]">{TIPOS_LITURGIA[item.tipo as keyof typeof TIPOS_LITURGIA]}</span>
+                            <span className="text-muted-foreground flex-1">
+                              {item.numero && `Nº ${item.numero}`}
+                              {item.conteudo && ` - "${item.conteudo}"`}
+                              {item.referencia && ` (${item.referencia})`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Pedidos de Oração */}
+                {boletimDetalhado.pedidosOracao && boletimDetalhado.pedidosOracao.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Heart className="w-4 h-4" />
+                      Pedidos de Oração
+                    </h3>
+                    <Card className="p-4">
+                      {Object.entries(
+                        boletimDetalhado.pedidosOracao.reduce((acc: Record<string, string[]>, pedido: PedidoOracao) => {
+                          if (!acc[pedido.categoria]) acc[pedido.categoria] = [];
+                          acc[pedido.categoria].push(pedido.descricao);
+                          return acc;
+                        }, {})
+                      ).map(([categoria, descricoes]) => (
+                        <div key={categoria} className="mb-3 last:mb-0" data-testid={`pedidos-categoria-${categoria}`}>
+                          <h4 className="font-medium text-sm mb-1">{CATEGORIAS_PEDIDOS[categoria as keyof typeof CATEGORIAS_PEDIDOS]}</h4>
+                          <ul className="space-y-1">
+                            {descricoes.map((desc, idx) => (
+                              <li key={idx} className="text-sm text-muted-foreground pl-3">• {desc}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </Card>
+                  </div>
+                )}
+
+                {/* Informações Gerais */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {boletimDetalhado.ofertaDia && (
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-sm">Oferta do Dia</h3>
+                      <Card className="p-3">
+                        <p className="text-sm text-muted-foreground">{boletimDetalhado.ofertaDia}</p>
+                      </Card>
+                    </div>
+                  )}
+
+                  {boletimDetalhado.saf && (
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-sm">SAF</h3>
+                      <Card className="p-3">
+                        <p className="text-sm text-muted-foreground">{boletimDetalhado.saf}</p>
+                      </Card>
+                    </div>
+                  )}
+                </div>
+
+                {/* Eventos */}
+                {boletimDetalhado.eventos && boletimDetalhado.eventos.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Eventos da Semana
+                    </h3>
+                    <Card className="p-4">
+                      <ul className="space-y-2">
+                        {boletimDetalhado.eventos.map((evento, idx) => (
+                          <li key={idx} className="text-sm text-muted-foreground" data-testid={`evento-${idx}`}>• {evento}</li>
+                        ))}
+                      </ul>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Avisos */}
+                {boletimDetalhado.avisos && boletimDetalhado.avisos.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-sm">Avisos</h3>
+                    <Card className="p-4">
+                      <div className="space-y-2">
+                        {boletimDetalhado.avisos.map((aviso, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-sm" data-testid={`aviso-${idx}`}>
+                            <span className="text-primary">•</span>
+                            <span className="text-muted-foreground flex-1">{aviso}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Devocional */}
+                {boletimDetalhado.devocional && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-sm">Mensagem Devocional</h3>
+                    <Card className="p-4">
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{boletimDetalhado.devocional}</p>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Relatório EBD */}
+                {boletimDetalhado.relatorioEbd && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" />
+                      Relatório EBD
+                    </h3>
+                    <Card className="p-4">
+                      <p className="text-sm font-medium mb-3">Matriculados: {boletimDetalhado.relatorioEbd.matriculados}</p>
+                      {boletimDetalhado.relatorioEbd.domingos && boletimDetalhado.relatorioEbd.domingos.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium">Domingos do Mês</h4>
+                          {boletimDetalhado.relatorioEbd.domingos.map((domingo: any, idx: number) => (
+                            <div key={idx} className="flex items-center gap-4 text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                              <span>{new Date(domingo.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                              <Separator orientation="vertical" className="h-4" />
+                              <span>Presentes: {domingo.presentes}</span>
+                              <span>Ausentes: {domingo.ausentes}</span>
+                              <span>Visitantes: {domingo.visitantes}</span>
+                              <span>Bíblias: {domingo.biblias}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </Card>
+                  </div>
+                )}
+
+                {/* Semana de Oração */}
+                {boletimDetalhado.semanaOracao && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Heart className="w-4 h-4" />
+                      Semana de Oração
+                    </h3>
+                    <Card className="p-4">
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(boletimDetalhado.semanaOracao.dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')} a {new Date(boletimDetalhado.semanaOracao.dataFim + 'T12:00:00').toLocaleDateString('pt-BR')}
+                      </p>
+                    </Card>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
