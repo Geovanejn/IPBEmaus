@@ -34,6 +34,7 @@ import {
   Heart,
   BookOpen,
   Info,
+  Mail,
 } from "lucide-react";
 import {
   type Boletim,
@@ -146,6 +147,10 @@ export default function BoletimDominical() {
   const [novoEvento, setNovoEvento] = useState("");
   const [avisos, setAvisos] = useState<string[]>([]);
   const [novoAviso, setNovoAviso] = useState("");
+  
+  // Estados para envio de email
+  const [boletimParaEnviar, setBoletimParaEnviar] = useState<Boletim | null>(null);
+  const [destinatariosSelecionados, setDestinatariosSelecionados] = useState<string[]>([]);
 
   const podeEditar = temPermissao("boletim", "total");
 
@@ -291,6 +296,27 @@ export default function BoletimDominical() {
     },
   });
 
+  const enviarEmailMutation = useMutation({
+    mutationFn: async ({ id, destinatarios }: { id: string; destinatarios: string[] }) => {
+      return await apiRequest("POST", `/api/boletins/${id}/enviar-email`, { destinatarios });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Email enviado com sucesso!",
+        description: `O boletim foi enviado para ${destinatariosSelecionados.length} destinatário(s).`,
+      });
+      setBoletimParaEnviar(null);
+      setDestinatariosSelecionados([]);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao enviar email",
+        description: error.message || "Não foi possível enviar o email. Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Funções para arrays dinâmicos
   const adicionarEvento = () => {
     if (novoEvento.trim()) {
@@ -312,6 +338,40 @@ export default function BoletimDominical() {
 
   const removerAviso = (index: number) => {
     setAvisos(avisos.filter((_, i) => i !== index));
+  };
+
+  // Funções para envio de email
+  const toggleDestinatario = (email: string) => {
+    if (destinatariosSelecionados.includes(email)) {
+      setDestinatariosSelecionados(destinatariosSelecionados.filter((e) => e !== email));
+    } else {
+      setDestinatariosSelecionados([...destinatariosSelecionados, email]);
+    }
+  };
+
+  const selecionarTodos = () => {
+    const todosEmails = membros.filter((m) => m.email).map((m) => m.email as string);
+    setDestinatariosSelecionados(todosEmails);
+  };
+
+  const desselecionarTodos = () => {
+    setDestinatariosSelecionados([]);
+  };
+
+  const enviarEmail = () => {
+    if (!boletimParaEnviar || destinatariosSelecionados.length === 0) {
+      toast({
+        title: "Selecione destinatários",
+        description: "Você precisa selecionar pelo menos um destinatário.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    enviarEmailMutation.mutate({
+      id: boletimParaEnviar.id,
+      destinatarios: destinatariosSelecionados,
+    });
   };
 
   const resetForm = () => {
@@ -1243,12 +1303,28 @@ export default function BoletimDominical() {
                       Ver Detalhes
                     </Button>
                     {boletim.pdfUrl && (
-                      <Button variant="outline" size="sm" asChild data-testid={`link-pdf-${boletim.id}`}>
-                        <a href={boletim.pdfUrl} target="_blank" rel="noopener noreferrer" download>
-                          <FileDown className="w-4 h-4 mr-2" />
-                          Baixar PDF
-                        </a>
-                      </Button>
+                      <>
+                        <Button variant="outline" size="sm" asChild data-testid={`link-pdf-${boletim.id}`}>
+                          <a href={boletim.pdfUrl} target="_blank" rel="noopener noreferrer" download>
+                            <FileDown className="w-4 h-4 mr-2" />
+                            Baixar PDF
+                          </a>
+                        </Button>
+                        {podeEditar && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setBoletimParaEnviar(boletim);
+                              setDestinatariosSelecionados([]);
+                            }}
+                            data-testid={`button-enviar-email-${boletim.id}`}
+                          >
+                            <Mail className="w-4 h-4 mr-2" />
+                            Enviar por Email
+                          </Button>
+                        )}
+                      </>
                     )}
                     {podeEditar && (
                       <>
@@ -1554,6 +1630,110 @@ export default function BoletimDominical() {
                 )}
               </div>
             </ScrollArea>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Dialog de Envio por Email */}
+      {boletimParaEnviar && (
+        <Dialog open={Boolean(boletimParaEnviar)} onOpenChange={(open) => !open && setBoletimParaEnviar(null)}>
+          <DialogContent className="max-w-2xl" data-testid="dialog-enviar-email">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                Enviar Boletim por Email
+              </DialogTitle>
+              <DialogDescription>
+                Selecione os membros que receberão o boletim "{boletimParaEnviar.tituloMensagem}" por email.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {destinatariosSelecionados.length} destinatário(s) selecionado(s)
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={selecionarTodos}
+                    data-testid="button-selecionar-todos"
+                  >
+                    Selecionar Todos
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={desselecionarTodos}
+                    data-testid="button-desselecionar-todos"
+                  >
+                    Limpar Seleção
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-2 pr-4">
+                  {membros.filter((m) => m.email).length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      Nenhum membro com email cadastrado.
+                    </p>
+                  ) : (
+                    membros
+                      .filter((m) => m.email)
+                      .map((membro) => (
+                        <div
+                          key={membro.id}
+                          className="flex items-center gap-3 p-3 rounded-md hover-elevate"
+                          onClick={() => toggleDestinatario(membro.email!)}
+                          data-testid={`checkbox-destinatario-${membro.id}`}
+                        >
+                          <Switch
+                            checked={destinatariosSelecionados.includes(membro.email!)}
+                            onCheckedChange={() => toggleDestinatario(membro.email!)}
+                          />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{membro.nome}</p>
+                            <p className="text-xs text-muted-foreground">{membro.email}</p>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </ScrollArea>
+
+              <Separator />
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setBoletimParaEnviar(null)}
+                  data-testid="button-cancelar-email"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={enviarEmail}
+                  disabled={enviarEmailMutation.isPending || destinatariosSelecionados.length === 0}
+                  data-testid="button-confirmar-envio-email"
+                >
+                  {enviarEmailMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4 mr-2" />
+                      Enviar Email
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       )}
