@@ -276,6 +276,91 @@ export const insertAtaSchema = createInsertSchema(atas).omit({ id: true, criadoE
 export type InsertAta = z.infer<typeof insertAtaSchema>;
 export type Ata = typeof atas.$inferSelect;
 
+// ==================== MÓDULO LGPD ====================
+export const solicitacoesLGPD = pgTable("solicitacoes_lgpd", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tipo: text("tipo").notNull(), // acesso, exportacao, exclusao, retificacao
+  status: text("status").notNull().default("pendente"), // pendente, em_andamento, concluida, recusada
+  tipoTitular: text("tipo_titular").notNull(), // membro, visitante
+  titularId: varchar("titular_id").notNull(),
+  titularNome: text("titular_nome").notNull(),
+  titularEmail: text("titular_email").notNull(),
+  motivo: text("motivo"),
+  justificativaRecusa: text("justificativa_recusa"),
+  responsavelId: varchar("responsavel_id"),
+  dataAtendimento: timestamp("data_atendimento"),
+  arquivoExportacao: text("arquivo_exportacao"),
+  criadoEm: timestamp("criado_em").notNull().defaultNow(),
+});
+
+export const insertSolicitacaoLGPDSchema = createInsertSchema(solicitacoesLGPD).omit({ id: true, criadoEm: true });
+export type InsertSolicitacaoLGPD = z.infer<typeof insertSolicitacaoLGPDSchema>;
+export type SolicitacaoLGPD = typeof solicitacoesLGPD.$inferSelect;
+
+export const logsConsentimento = pgTable("logs_consentimento", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tipoTitular: text("tipo_titular").notNull(), // membro, visitante
+  titularId: varchar("titular_id").notNull(),
+  titularNome: text("titular_nome").notNull(),
+  acao: text("acao").notNull(), // concedido, revogado
+  consentimentoAnterior: boolean("consentimento_anterior").notNull(),
+  consentimentoNovo: boolean("consentimento_novo").notNull(),
+  usuarioId: varchar("usuario_id"),
+  ipAddress: text("ip_address"),
+  criadoEm: timestamp("criado_em").notNull().defaultNow(),
+});
+
+export const insertLogConsentimentoSchema = createInsertSchema(logsConsentimento).omit({ id: true, criadoEm: true });
+export type InsertLogConsentimento = z.infer<typeof insertLogConsentimentoSchema>;
+export type LogConsentimento = typeof logsConsentimento.$inferSelect;
+
+export const logsAuditoria = pgTable("logs_auditoria", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  modulo: text("modulo").notNull(), // pastoral, financeiro, diaconal, boletim, atas, lgpd, auth
+  acao: text("acao").notNull(), // criar, editar, deletar, visualizar, exportar, aprovar
+  descricao: text("descricao").notNull(),
+  registroId: varchar("registro_id"),
+  usuarioId: varchar("usuario_id").notNull(),
+  usuarioNome: text("usuario_nome").notNull(),
+  usuarioCargo: text("usuario_cargo").notNull(),
+  ipAddress: text("ip_address"),
+  dadosAnteriores: jsonb("dados_anteriores"),
+  dadosNovos: jsonb("dados_novos"),
+  criadoEm: timestamp("criado_em").notNull().defaultNow(),
+});
+
+export const insertLogAuditoriaSchema = createInsertSchema(logsAuditoria).omit({ id: true, criadoEm: true });
+export type InsertLogAuditoria = z.infer<typeof insertLogAuditoriaSchema>;
+export type LogAuditoria = typeof logsAuditoria.$inferSelect;
+
+// Tipos para exportação de dados LGPD
+export interface DadosTitularExport {
+  tipoTitular: "membro" | "visitante";
+  dadosPessoais: Partial<Membro> | Partial<Visitante>;
+  familia?: Partial<Familia>;
+  notasPastorais?: Array<Omit<NotaPastoral, "conteudo"> & { temConteudo: boolean }>;
+  transacoesFinanceiras?: Partial<TransacaoFinanceira>[];
+  acoesDiaconais?: Partial<AcaoDiaconal>[];
+  logsConsentimento?: LogConsentimento[];
+  dataExportacao: string;
+}
+
+export interface ResultadoExclusaoTitular {
+  sucesso: boolean;
+  titularId: string;
+  tipoTitular: "membro" | "visitante";
+  registrosExcluidos: {
+    dadosPrincipais: boolean;
+    notasPastorais?: number;
+    transacoes?: number;
+    acoesDiaconais?: number;
+    logsConsentimento?: number;
+  };
+  motivo?: string;
+  solicitacaoId?: string;
+  dataExclusao: string;
+}
+
 // ==================== TIPOS AUXILIARES ====================
 export type Cargo = "PASTOR" | "PRESBITERO" | "TESOUREIRO" | "DIACONO";
 
@@ -287,6 +372,7 @@ export const PERMISSOES_POR_CARGO: Record<Cargo, {
   diaconal: "total" | "leitura" | "nenhum";
   boletim: "total" | "leitura" | "nenhum";
   atas: "total" | "leitura" | "nenhum";
+  lgpd: "total" | "leitura" | "nenhum";
 }> = {
   PASTOR: {
     pastoral: "total",
@@ -294,6 +380,7 @@ export const PERMISSOES_POR_CARGO: Record<Cargo, {
     diaconal: "total",
     boletim: "total",
     atas: "total",
+    lgpd: "total",
   },
   PRESBITERO: {
     pastoral: "total",
@@ -301,6 +388,7 @@ export const PERMISSOES_POR_CARGO: Record<Cargo, {
     diaconal: "leitura",
     boletim: "total",
     atas: "total",
+    lgpd: "leitura",
   },
   TESOUREIRO: {
     pastoral: "leitura",
@@ -308,6 +396,7 @@ export const PERMISSOES_POR_CARGO: Record<Cargo, {
     diaconal: "leitura",
     boletim: "leitura",
     atas: "leitura",
+    lgpd: "nenhum",
   },
   DIACONO: {
     pastoral: "leitura",
@@ -315,5 +404,6 @@ export const PERMISSOES_POR_CARGO: Record<Cargo, {
     diaconal: "total",
     boletim: "leitura",
     atas: "leitura",
+    lgpd: "nenhum",
   },
 };

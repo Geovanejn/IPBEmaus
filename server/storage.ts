@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool, neonConfig } from "@neondatabase/serverless";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import ws from "ws";
 import * as schema from "@shared/schema";
 import {
@@ -14,6 +14,11 @@ import {
   type Boletim, type InsertBoletim,
   type Reuniao, type InsertReuniao,
   type Ata, type InsertAta,
+  type SolicitacaoLGPD, type InsertSolicitacaoLGPD,
+  type LogConsentimento, type InsertLogConsentimento,
+  type LogAuditoria, type InsertLogAuditoria,
+  type DadosTitularExport,
+  type ResultadoExclusaoTitular,
 } from "@shared/schema";
 
 neonConfig.webSocketConstructor = ws;
@@ -85,6 +90,23 @@ export interface IStorage {
   getAta(id: string): Promise<Ata | undefined>;
   criarAta(ata: InsertAta): Promise<Ata>;
   aprovarAta(id: string, aprovadoPorId: string): Promise<Ata | undefined>;
+  
+  // LGPD - Solicitações
+  criarSolicitacaoLGPD(solicitacao: InsertSolicitacaoLGPD): Promise<SolicitacaoLGPD>;
+  getSolicitacoesLGPD(params?: { status?: string; tipo?: string; titularId?: string; responsavelId?: string }): Promise<SolicitacaoLGPD[]>;
+  getSolicitacaoLGPD(id: string): Promise<SolicitacaoLGPD | undefined>;
+  atualizarSolicitacaoLGPD(id: string, dados: Partial<SolicitacaoLGPD>): Promise<SolicitacaoLGPD | undefined>;
+  transitionSolicitacaoLGPDStatus(id: string, status: string, metadata: { responsavelId?: string; justificativaRecusa?: string; arquivoExportacao?: string }): Promise<SolicitacaoLGPD | undefined>;
+  exportarDadosTitular(tipoTitular: "membro" | "visitante", titularId: string): Promise<DadosTitularExport>;
+  executarExclusaoTitular(tipoTitular: "membro" | "visitante", titularId: string, opts?: { cascade?: boolean; motivo?: string; solicitacaoId?: string }): Promise<ResultadoExclusaoTitular>;
+  
+  // LGPD - Logs de Consentimento
+  registrarLogConsentimento(log: InsertLogConsentimento): Promise<LogConsentimento>;
+  getLogsConsentimentoPorTitular(tipoTitular: "membro" | "visitante", titularId: string): Promise<LogConsentimento[]>;
+  
+  // LGPD - Logs de Auditoria
+  registrarLogAuditoria(log: InsertLogAuditoria): Promise<LogAuditoria>;
+  getLogsAuditoria(params?: { modulo?: string; acao?: string; usuarioId?: string; registroId?: string }): Promise<LogAuditoria[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -512,6 +534,173 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.atas.id, id))
       .returning();
     return result[0];
+  }
+
+  async criarSolicitacaoLGPD(insertSolicitacao: InsertSolicitacaoLGPD): Promise<SolicitacaoLGPD> {
+    const result = await db.insert(schema.solicitacoesLGPD).values(insertSolicitacao).returning();
+    return result[0];
+  }
+
+  async getSolicitacoesLGPD(params?: { status?: string; tipo?: string; titularId?: string; responsavelId?: string }): Promise<SolicitacaoLGPD[]> {
+    await this.ensureInitialized();
+    
+    const conditions = [];
+    if (params?.status) conditions.push(eq(schema.solicitacoesLGPD.status, params.status));
+    if (params?.tipo) conditions.push(eq(schema.solicitacoesLGPD.tipo, params.tipo));
+    if (params?.titularId) conditions.push(eq(schema.solicitacoesLGPD.titularId, params.titularId));
+    if (params?.responsavelId) conditions.push(eq(schema.solicitacoesLGPD.responsavelId, params.responsavelId));
+    
+    if (conditions.length === 1) {
+      return await db.select().from(schema.solicitacoesLGPD).where(conditions[0]);
+    } else if (conditions.length > 1) {
+      return await db.select().from(schema.solicitacoesLGPD).where(and(...conditions));
+    }
+    
+    return await db.select().from(schema.solicitacoesLGPD);
+  }
+
+  async getSolicitacaoLGPD(id: string): Promise<SolicitacaoLGPD | undefined> {
+    const result = await db.select().from(schema.solicitacoesLGPD).where(eq(schema.solicitacoesLGPD.id, id)).limit(1);
+    return result[0];
+  }
+
+  async atualizarSolicitacaoLGPD(id: string, dados: Partial<SolicitacaoLGPD>): Promise<SolicitacaoLGPD | undefined> {
+    const result = await db.update(schema.solicitacoesLGPD).set(dados).where(eq(schema.solicitacoesLGPD.id, id)).returning();
+    return result[0];
+  }
+
+  async transitionSolicitacaoLGPDStatus(id: string, status: string, metadata: { responsavelId?: string; justificativaRecusa?: string; arquivoExportacao?: string }): Promise<SolicitacaoLGPD | undefined> {
+    const updateData: Partial<SolicitacaoLGPD> = {
+      status,
+      dataAtendimento: new Date(),
+    };
+    
+    if (metadata.responsavelId) updateData.responsavelId = metadata.responsavelId;
+    if (metadata.justificativaRecusa) updateData.justificativaRecusa = metadata.justificativaRecusa;
+    if (metadata.arquivoExportacao) updateData.arquivoExportacao = metadata.arquivoExportacao;
+    
+    const result = await db.update(schema.solicitacoesLGPD).set(updateData).where(eq(schema.solicitacoesLGPD.id, id)).returning();
+    return result[0];
+  }
+
+  async exportarDadosTitular(tipoTitular: "membro" | "visitante", titularId: string): Promise<DadosTitularExport> {
+    let dadosPessoais: any;
+    let familia: any;
+    
+    if (tipoTitular === "membro") {
+      const membro = await db.select().from(schema.membros).where(eq(schema.membros.id, titularId)).limit(1);
+      if (!membro[0]) throw new Error("Membro não encontrado");
+      dadosPessoais = membro[0];
+      
+      if (membro[0].familiaId) {
+        const fam = await db.select().from(schema.familias).where(eq(schema.familias.id, membro[0].familiaId)).limit(1);
+        familia = fam[0];
+      }
+    } else {
+      const visitante = await db.select().from(schema.visitantes).where(eq(schema.visitantes.id, titularId)).limit(1);
+      if (!visitante[0]) throw new Error("Visitante não encontrado");
+      dadosPessoais = visitante[0];
+    }
+    
+    const notasPastorais = await db.select().from(schema.notasPastorais).where(eq(schema.notasPastorais.membroId, titularId));
+    const notasFormatadas = notasPastorais.map(nota => ({
+      id: nota.id,
+      membroId: nota.membroId,
+      titulo: nota.titulo,
+      temConteudo: !!nota.conteudo,
+      nivelSigilo: nota.nivelSigilo,
+      autorId: nota.autorId,
+      criadoEm: nota.criadoEm,
+    }));
+    
+    const transacoes = await db.select().from(schema.transacoesFinanceiras).where(eq(schema.transacoesFinanceiras.membroId, titularId));
+    const acoes = await db.select().from(schema.acoesDiaconais);
+    const logsConsentimento = await db.select().from(schema.logsConsentimento).where(eq(schema.logsConsentimento.titularId, titularId));
+    
+    return {
+      tipoTitular,
+      dadosPessoais,
+      familia,
+      notasPastorais: notasFormatadas,
+      transacoesFinanceiras: transacoes,
+      acoesDiaconais: acoes,
+      logsConsentimento,
+      dataExportacao: new Date().toISOString(),
+    };
+  }
+
+  async executarExclusaoTitular(tipoTitular: "membro" | "visitante", titularId: string, opts?: { cascade?: boolean; motivo?: string; solicitacaoId?: string }): Promise<ResultadoExclusaoTitular> {
+    const cascade = opts?.cascade ?? true;
+    const resultado: ResultadoExclusaoTitular = {
+      sucesso: false,
+      titularId,
+      tipoTitular,
+      registrosExcluidos: {
+        dadosPrincipais: false,
+      },
+      motivo: opts?.motivo,
+      solicitacaoId: opts?.solicitacaoId,
+      dataExclusao: new Date().toISOString(),
+    };
+    
+    try {
+      if (cascade) {
+        const notasDeletadas = await db.delete(schema.notasPastorais).where(eq(schema.notasPastorais.membroId, titularId));
+        resultado.registrosExcluidos.notasPastorais = notasDeletadas.rowCount || 0;
+        
+        const transacoesDeletadas = await db.delete(schema.transacoesFinanceiras).where(eq(schema.transacoesFinanceiras.membroId, titularId));
+        resultado.registrosExcluidos.transacoes = transacoesDeletadas.rowCount || 0;
+        
+        const logsDeletados = await db.delete(schema.logsConsentimento).where(eq(schema.logsConsentimento.titularId, titularId));
+        resultado.registrosExcluidos.logsConsentimento = logsDeletados.rowCount || 0;
+      }
+      
+      if (tipoTitular === "membro") {
+        await db.delete(schema.membros).where(eq(schema.membros.id, titularId));
+      } else {
+        await db.delete(schema.visitantes).where(eq(schema.visitantes.id, titularId));
+      }
+      
+      resultado.registrosExcluidos.dadosPrincipais = true;
+      resultado.sucesso = true;
+    } catch (error) {
+      console.error("Erro ao executar exclusão:", error);
+    }
+    
+    return resultado;
+  }
+
+  async registrarLogConsentimento(insertLog: InsertLogConsentimento): Promise<LogConsentimento> {
+    const result = await db.insert(schema.logsConsentimento).values(insertLog).returning();
+    return result[0];
+  }
+
+  async getLogsConsentimentoPorTitular(tipoTitular: "membro" | "visitante", titularId: string): Promise<LogConsentimento[]> {
+    return await db.select().from(schema.logsConsentimento)
+      .where(eq(schema.logsConsentimento.titularId, titularId));
+  }
+
+  async registrarLogAuditoria(insertLog: InsertLogAuditoria): Promise<LogAuditoria> {
+    const result = await db.insert(schema.logsAuditoria).values(insertLog).returning();
+    return result[0];
+  }
+
+  async getLogsAuditoria(params?: { modulo?: string; acao?: string; usuarioId?: string; registroId?: string }): Promise<LogAuditoria[]> {
+    await this.ensureInitialized();
+    
+    const conditions = [];
+    if (params?.modulo) conditions.push(eq(schema.logsAuditoria.modulo, params.modulo));
+    if (params?.acao) conditions.push(eq(schema.logsAuditoria.acao, params.acao));
+    if (params?.usuarioId) conditions.push(eq(schema.logsAuditoria.usuarioId, params.usuarioId));
+    if (params?.registroId) conditions.push(eq(schema.logsAuditoria.registroId, params.registroId));
+    
+    if (conditions.length === 1) {
+      return await db.select().from(schema.logsAuditoria).where(conditions[0]);
+    } else if (conditions.length > 1) {
+      return await db.select().from(schema.logsAuditoria).where(and(...conditions));
+    }
+    
+    return await db.select().from(schema.logsAuditoria);
   }
 }
 

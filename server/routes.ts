@@ -907,103 +907,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==================== LGPD ====================
-  app.get("/api/lgpd/meus-dados", async (req, res) => {
+  
+  // Solicitações LGPD
+  app.get("/api/lgpd/solicitacoes", async (req, res) => {
     try {
-      // Em um sistema real, pegaria do session ou token
-      // Aqui vamos simular com um header
-      const usuarioId = req.headers["x-user-id"] as string;
-      
-      if (!usuarioId) {
-        return res.status(401).json({ message: "Não autenticado" });
-      }
-
-      const usuario = await storage.getUsuario(usuarioId);
-      if (!usuario) {
-        return res.status(404).json({ message: "Usuário não encontrado" });
-      }
-
-      // Coletar todos os dados do usuário
-      const dadosUsuario = {
-        informacoesPessoais: {
-          nome: usuario.nome,
-          email: usuario.email,
-          cargo: usuario.cargo,
-          ativo: usuario.ativo,
-          criadoEm: usuario.criadoEm,
-        },
-        consentimento: {
-          lgpd: true, // Usuário concorda ao usar o sistema
-          dataConsentimento: usuario.criadoEm,
-        }
-      };
-
-      res.json(dadosUsuario);
-    } catch (error) {
-      console.error("Erro ao buscar dados LGPD:", error);
-      res.status(500).json({ message: "Erro ao buscar dados pessoais" });
-    }
-  });
-
-  app.get("/api/lgpd/exportar-dados", async (req, res) => {
-    try {
-      const usuarioId = req.headers["x-user-id"] as string;
-      
-      if (!usuarioId) {
-        return res.status(401).json({ message: "Não autenticado" });
-      }
-
-      const usuario = await storage.getUsuario(usuarioId);
-      if (!usuario) {
-        return res.status(404).json({ message: "Usuário não encontrado" });
-      }
-
-      const { senha, ...usuarioSemSenha } = usuario;
-
-      const dadosCompletos = {
-        usuario: usuarioSemSenha,
-        dataExportacao: new Date().toISOString(),
-        formatoExportacao: "JSON",
-      };
-
-      res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.setHeader("Content-Disposition", `attachment; filename="meus-dados-${usuario.nome.replace(/\s/g, '_')}.json"`);
-      res.json(dadosCompletos);
-    } catch (error) {
-      console.error("Erro ao exportar dados:", error);
-      res.status(500).json({ message: "Erro ao exportar dados pessoais" });
-    }
-  });
-
-  app.post("/api/lgpd/solicitar-exclusao", async (req, res) => {
-    try {
-      const usuarioId = req.headers["x-user-id"] as string;
-      
-      if (!usuarioId) {
-        return res.status(401).json({ message: "Não autenticado" });
-      }
-
-      const usuario = await storage.getUsuario(usuarioId);
-      if (!usuario) {
-        return res.status(404).json({ message: "Usuário não encontrado" });
-      }
-
-      // Em um sistema real, isso criaria um ticket/solicitação
-      // Por enquanto, vamos apenas desativar o usuário
-      const desativado = await storage.desativarUsuario(usuarioId);
-      
-      if (!desativado) {
-        return res.status(500).json({ message: "Erro ao processar solicitação" });
-      }
-
-      res.json({ 
-        message: "Solicitação de exclusão recebida com sucesso",
-        datasolicitacao: new Date().toISOString(),
-        status: "pendente",
-        prazoExclusao: "30 dias",
+      const { status, tipo, titularId, responsavelId } = req.query;
+      const solicitacoes = await storage.getSolicitacoesLGPD({
+        status: status as string,
+        tipo: tipo as string,
+        titularId: titularId as string,
+        responsavelId: responsavelId as string,
       });
+      res.json(solicitacoes);
     } catch (error) {
-      console.error("Erro ao solicitar exclusão:", error);
-      res.status(500).json({ message: "Erro ao processar solicitação de exclusão" });
+      console.error("Erro ao listar solicitações LGPD:", error);
+      res.status(500).json({ message: "Erro ao listar solicitações LGPD" });
+    }
+  });
+
+  app.get("/api/lgpd/solicitacoes/:id", async (req, res) => {
+    try {
+      const solicitacao = await storage.getSolicitacaoLGPD(req.params.id);
+      if (!solicitacao) {
+        return res.status(404).json({ message: "Solicitação não encontrada" });
+      }
+      res.json(solicitacao);
+    } catch (error) {
+      console.error("Erro ao buscar solicitação LGPD:", error);
+      res.status(500).json({ message: "Erro ao buscar solicitação LGPD" });
+    }
+  });
+
+  app.post("/api/lgpd/solicitacoes", async (req, res) => {
+    try {
+      const solicitacao = await storage.criarSolicitacaoLGPD(req.body);
+      res.status(201).json(solicitacao);
+    } catch (error) {
+      console.error("Erro ao criar solicitação LGPD:", error);
+      res.status(500).json({ message: "Erro ao criar solicitação LGPD" });
+    }
+  });
+
+  app.patch("/api/lgpd/solicitacoes/:id", async (req, res) => {
+    try {
+      const solicitacao = await storage.atualizarSolicitacaoLGPD(req.params.id, req.body);
+      if (!solicitacao) {
+        return res.status(404).json({ message: "Solicitação não encontrada" });
+      }
+      res.json(solicitacao);
+    } catch (error) {
+      console.error("Erro ao atualizar solicitação LGPD:", error);
+      res.status(500).json({ message: "Erro ao atualizar solicitação LGPD" });
+    }
+  });
+
+  app.post("/api/lgpd/solicitacoes/:id/processar", async (req, res) => {
+    try {
+      const { status, responsavelId, justificativaRecusa, arquivoExportacao } = req.body;
+      const solicitacao = await storage.transitionSolicitacaoLGPDStatus(req.params.id, status, {
+        responsavelId,
+        justificativaRecusa,
+        arquivoExportacao,
+      });
+      if (!solicitacao) {
+        return res.status(404).json({ message: "Solicitação não encontrada" });
+      }
+      res.json(solicitacao);
+    } catch (error) {
+      console.error("Erro ao processar solicitação LGPD:", error);
+      res.status(500).json({ message: "Erro ao processar solicitação LGPD" });
+    }
+  });
+
+  // Exportar dados de titular
+  app.get("/api/lgpd/exportar-titular/:tipoTitular/:titularId", async (req, res) => {
+    try {
+      const { tipoTitular, titularId } = req.params;
+      if (tipoTitular !== "membro" && tipoTitular !== "visitante") {
+        return res.status(400).json({ message: "Tipo de titular inválido" });
+      }
+      
+      const dados = await storage.exportarDadosTitular(tipoTitular as "membro" | "visitante", titularId);
+      
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="dados-${tipoTitular}-${titularId}.json"`);
+      res.json(dados);
+    } catch (error) {
+      console.error("Erro ao exportar dados do titular:", error);
+      res.status(500).json({ message: "Erro ao exportar dados do titular" });
+    }
+  });
+
+  // Executar exclusão de titular
+  app.delete("/api/lgpd/excluir-titular/:tipoTitular/:titularId", async (req, res) => {
+    try {
+      const { tipoTitular, titularId } = req.params;
+      const { cascade, motivo, solicitacaoId } = req.body;
+      
+      if (tipoTitular !== "membro" && tipoTitular !== "visitante") {
+        return res.status(400).json({ message: "Tipo de titular inválido" });
+      }
+      
+      const resultado = await storage.executarExclusaoTitular(tipoTitular as "membro" | "visitante", titularId, {
+        cascade,
+        motivo,
+        solicitacaoId,
+      });
+      
+      res.json(resultado);
+    } catch (error) {
+      console.error("Erro ao excluir titular:", error);
+      res.status(500).json({ message: "Erro ao excluir titular" });
+    }
+  });
+
+  // Logs de Consentimento
+  app.post("/api/lgpd/logs-consentimento", async (req, res) => {
+    try {
+      const log = await storage.registrarLogConsentimento(req.body);
+      res.status(201).json(log);
+    } catch (error) {
+      console.error("Erro ao registrar log de consentimento:", error);
+      res.status(500).json({ message: "Erro ao registrar log de consentimento" });
+    }
+  });
+
+  app.get("/api/lgpd/logs-consentimento/:tipoTitular/:titularId", async (req, res) => {
+    try {
+      const { tipoTitular, titularId } = req.params;
+      if (tipoTitular !== "membro" && tipoTitular !== "visitante") {
+        return res.status(400).json({ message: "Tipo de titular inválido" });
+      }
+      
+      const logs = await storage.getLogsConsentimentoPorTitular(tipoTitular as "membro" | "visitante", titularId);
+      res.json(logs);
+    } catch (error) {
+      console.error("Erro ao buscar logs de consentimento:", error);
+      res.status(500).json({ message: "Erro ao buscar logs de consentimento" });
+    }
+  });
+
+  // Logs de Auditoria
+  app.post("/api/lgpd/logs-auditoria", async (req, res) => {
+    try {
+      const log = await storage.registrarLogAuditoria(req.body);
+      res.status(201).json(log);
+    } catch (error) {
+      console.error("Erro ao registrar log de auditoria:", error);
+      res.status(500).json({ message: "Erro ao registrar log de auditoria" });
+    }
+  });
+
+  app.get("/api/lgpd/logs-auditoria", async (req, res) => {
+    try {
+      const { modulo, acao, usuarioId, registroId } = req.query;
+      const logs = await storage.getLogsAuditoria({
+        modulo: modulo as string,
+        acao: acao as string,
+        usuarioId: usuarioId as string,
+        registroId: registroId as string,
+      });
+      res.json(logs);
+    } catch (error) {
+      console.error("Erro ao buscar logs de auditoria:", error);
+      res.status(500).json({ message: "Erro ao buscar logs de auditoria" });
     }
   });
 
