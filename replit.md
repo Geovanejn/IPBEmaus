@@ -39,6 +39,15 @@ Plataforma integrada de gestão eclesiástica para a Igreja Presbiteriana do Bra
 - Exportação em PDF/A para arquivo permanente
 - Registro de participantes e deliberações
 
+### 6. Módulo Relatórios e Análises
+- Relatórios pastorais: estatísticas de membros, visitantes e aniversariantes
+- Relatórios financeiros: receitas, despesas, saldo e análises por categoria e centro de custo
+- Relatórios diaconais: ações realizadas, beneficiários atendidos e valores investidos
+- Filtros por período personalizável
+- Visualizações com cards de resumo e gráficos informativos
+- Exportação de dados em formato CSV para análise externa
+- Acesso baseado em permissões (cada cargo vê relatórios de seus módulos)
+
 ## Autenticação e Permissões
 
 ### Cargos
@@ -176,20 +185,28 @@ O sistema possui 4 cargos com permissões específicas:
 - **Responsividade**: Funciona em desktop, tablet e mobile
 
 ## Estado Atual
-✅ Interface visual completa de todos os 5 módulos
+✅ Interface visual completa de todos os 6 módulos
 ✅ Sistema de autenticação por cargo
 ✅ Controle de permissões implementado com navegação baseada em papel
 ✅ PostgreSQL configurado com Drizzle ORM
-✅ Cinco módulos 100% funcionais: Pastoral, Financeiro, Diaconal, Boletim, Atas
+✅ Seis módulos 100% funcionais: Pastoral, Financeiro, Diaconal, Boletim, Atas, Relatórios
 ✅ Sistema completo de geração de PDFs (backend + frontend)
 ✅ Upload de arquivos (fotos, comprovantes) implementado
+✅ Sistema de relatórios com filtros e exportação CSV
 ✅ Design profissional e moderno
 ✅ Totalmente em português do Brasil
 ⏳ Envio de e-mails via Resend (próxima fase)
 ⏳ Integração Power BI (próxima fase)
 ⏳ Storage em nuvem (Cloudflare R2 / Supabase) - opcional
 
-## Mudanças Recentes (Nov 10, 2025)
+## Mudanças Recentes (Nov 11, 2025)
+✅ **Módulo de Relatórios Completo**: Sistema completo de relatórios pastorais, financeiros e diaconais com filtros por período
+✅ **Exportação de Dados**: Exportação em CSV com codificação UTF-8 para todos os tipos de relatórios
+✅ **Visualizações Detalhadas**: Cards de resumo, estatísticas agregadas e análises por categoria/centro de custo
+✅ **Correção do Boletim**: Campos opcionais agora são corretamente limpos antes do salvamento
+✅ **Permissões de Acesso**: Todos os cargos podem acessar relatórios de seus módulos permitidos
+
+## Mudanças Anteriores (Nov 10, 2025)
 ✅ **Interface de Geração de PDFs Completa**: Implementados botões "Gerar PDF" e "Baixar PDF" nos módulos Boletim e Atas com estados de loading e toasts de feedback
 ✅ **Sistema de Upload de Arquivos**: Upload de fotos de membros e comprovantes financeiros implementado com validação de tipos e preview
 ✅ **Correção Crítica de Navegação**: Usuários Tesoureiro e Diácono agora redirecionam corretamente para suas rotas padrão
