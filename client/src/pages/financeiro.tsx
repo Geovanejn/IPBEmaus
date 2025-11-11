@@ -27,8 +27,11 @@ import {
   Receipt,
   DollarSign,
   Loader2,
+  PieChart as PieChartIcon,
+  BarChart3,
 } from "lucide-react";
 import { type TransacaoFinanceira, type Membro, insertTransacaoFinanceiraSchema } from "@shared/schema";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const transacaoFormSchema = insertTransacaoFinanceiraSchema.extend({
   valor: z.union([z.string(), z.number()]).transform((val) => {
@@ -435,6 +438,108 @@ export default function Financeiro() {
               {formatarMoeda(saldo)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">Saldo atual</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gráficos Interativos */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Gráfico de Receitas vs Despesas por Categoria */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Receitas vs Despesas por Categoria
+            </CardTitle>
+            <CardDescription>Comparação de valores por categoria</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={(() => {
+                const receitasPorCategoria: Record<string, number> = {};
+                const despesasPorCategoria: Record<string, number> = {};
+                
+                transacoesComMembroNome.forEach(t => {
+                  if (t.tipo === "receita") {
+                    receitasPorCategoria[t.categoria] = (receitasPorCategoria[t.categoria] || 0) + t.valor;
+                  } else {
+                    despesasPorCategoria[t.categoria] = (despesasPorCategoria[t.categoria] || 0) + t.valor;
+                  }
+                });
+
+                const categorias = new Set([...Object.keys(receitasPorCategoria), ...Object.keys(despesasPorCategoria)]);
+                return Array.from(categorias).map(cat => ({
+                  categoria: categoriaLabels[cat as keyof typeof categoriaLabels] || cat,
+                  receitas: (receitasPorCategoria[cat] || 0) / 100,
+                  despesas: (despesasPorCategoria[cat] || 0) / 100,
+                }));
+              })()}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="categoria" className="text-xs" />
+                <YAxis className="text-xs" />
+                <Tooltip 
+                  formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                />
+                <Legend />
+                <Bar dataKey="receitas" name="Receitas" fill="hsl(var(--chart-1))" />
+                <Bar dataKey="despesas" name="Despesas" fill="hsl(var(--chart-2))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Gráfico de Distribuição por Centro de Custo */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PieChartIcon className="w-5 h-5" />
+              Distribuição por Centro de Custo
+            </CardTitle>
+            <CardDescription>Valores totais por centro de custo</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={(() => {
+                    const porCentro: Record<string, number> = {};
+                    transacoesComMembroNome.forEach(t => {
+                      const centro = t.centroCusto || "geral";
+                      porCentro[centro] = (porCentro[centro] || 0) + t.valor;
+                    });
+                    return Object.entries(porCentro).map(([centro, valor]) => ({
+                      name: centroCustoLabels[centro as keyof typeof centroCustoLabels] || centro,
+                      value: valor / 100,
+                    }));
+                  })()}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={(entry) => `${entry.name}: R$ ${entry.value.toFixed(2)}`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {(() => {
+                    const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))'];
+                    const porCentro: Record<string, number> = {};
+                    transacoesComMembroNome.forEach(t => {
+                      const centro = t.centroCusto || "geral";
+                      porCentro[centro] = (porCentro[centro] || 0) + t.valor;
+                    });
+                    return Object.keys(porCentro).map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ));
+                  })()}
+                </Pie>
+                <Tooltip 
+                  formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>

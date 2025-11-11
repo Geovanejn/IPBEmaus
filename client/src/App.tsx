@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Church, LogOut, Menu } from "lucide-react";
+import logoIpbEmaus from "@assets/Logo IPE Completo_1762855160673.png";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -135,14 +136,15 @@ function AppHeader() {
   const temMultiplasPaginas = paginasDisponiveis.length > 1;
 
   return (
-    <header className="flex h-14 items-center gap-4 border-b bg-background px-6 shrink-0">
+    <header className="flex h-16 items-center gap-4 border-b bg-background px-6 shrink-0">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-          <Church className="w-5 h-5 text-primary" />
-        </div>
+        <img 
+          src={logoIpbEmaus} 
+          alt="Logo IPB Emaús" 
+          className="h-10 w-auto"
+        />
         <div className="flex flex-col">
-          <h2 className="font-bold text-sm">IPB Emaús</h2>
-          <p className="text-xs text-muted-foreground">Sistema Integrado</p>
+          <p className="text-xs text-muted-foreground">Sistema de Gestão</p>
         </div>
       </div>
 
