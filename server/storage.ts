@@ -118,7 +118,9 @@ export interface IStorage {
   // LGPD Público - Tokens de Verificação
   criarVerificationToken(token: schema.InsertVerificationToken): Promise<schema.VerificationToken>;
   buscarVerificationToken(codigo: string, titularId: string): Promise<schema.VerificationToken | undefined>;
+  buscarSessionToken(sessionToken: string): Promise<schema.VerificationToken | undefined>;
   validarVerificationToken(id: string): Promise<schema.VerificationToken | undefined>;
+  revogarSessionToken(id: string): Promise<void>;
   incrementarTentativasValidacao(id: string): Promise<void>;
   
   // LGPD Público - Logs de Acesso
@@ -794,6 +796,25 @@ export class DatabaseStorage implements IStorage {
     return tokenValido;
   }
 
+  async buscarSessionToken(sessionToken: string): Promise<schema.VerificationToken | undefined> {
+    const tokens = await db.select().from(schema.verificationTokens)
+      .where(and(
+        eq(schema.verificationTokens.sessionToken, sessionToken),
+        eq(schema.verificationTokens.validado, true)
+      ));
+    
+    if (tokens.length === 0) return undefined;
+    
+    const token = tokens[0];
+    
+    // Verificar se a sessão ainda é válida
+    if (token.sessionExpiresAt && new Date() > new Date(token.sessionExpiresAt)) {
+      return undefined; // Sessão expirada
+    }
+    
+    return token;
+  }
+
   async validarVerificationToken(id: string): Promise<schema.VerificationToken | undefined> {
     // Gera session token opaco (UUID)
     const sessionToken = crypto.randomUUID();
@@ -810,6 +831,15 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return result[0];
+  }
+
+  async revogarSessionToken(id: string): Promise<void> {
+    await db.update(schema.verificationTokens)
+      .set({
+        sessionToken: null,
+        sessionExpiresAt: null,
+      })
+      .where(eq(schema.verificationTokens.id, id));
   }
 
   async incrementarTentativasValidacao(id: string): Promise<void> {
