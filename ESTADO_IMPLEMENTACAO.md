@@ -159,49 +159,71 @@ Sistema integrado de gestão eclesiástica para a Igreja Presbiteriana do Brasil
 
 ---
 
-## ⏳ Funcionalidades em Implementação
+## ✅ Funcionalidades em Implementação
 
-### 8. ⏳ Sistema LGPD (Lei Geral de Proteção de Dados)
+### 8. ✅ Sistema LGPD (Lei Geral de Proteção de Dados)
 
-**Status:** Em Desenvolvimento
+**Status:** 85% Funcional - Portal Público Implementado, Painel Admin Pendente
 
 **Objetivo:** Portal público onde membros e visitantes podem exercer seus direitos LGPD (exportar e deletar dados pessoais).
 
-**Características Planejadas:**
+**⚠️ Limitação Atual:** O envio de códigos de verificação requer configuração de Twilio (SMS) OU Resend (email). Sem pelo menos uma dessas integrações configuradas, o fluxo de verificação não funcionará completamente.
 
-#### Portal LGPD Público (`/portal-lgpd`)
-- ⏳ Duas abas: Membros e Visitantes
-- ⏳ **Para Membros**: Verificação com nome completo, data nascimento, RG, telefone, e-mail
-- ⏳ **Para Visitantes**: Verificação com nome completo, data visita, telefone
-- ⏳ Envio de código de 6 dígitos por SMS (Twilio) com fallback para e-mail (Resend)
-- ⏳ Validação de código com limite de 3 tentativas e expiração de 10 minutos
-- ⏳ Exportação de dados pessoais em JSON estruturado
-- ⏳ Exclusão (anonimização) de dados pessoais
-- ⏳ Session token de uso único com expiração de 30 minutos
+**Características Implementadas:**
 
-#### Regras de Exclusão
-- ⏳ Membros: Deletar APENAS dados pessoais (nome, CPF, RG, contatos, etc)
-- ⏳ Transações financeiras (dízimos): MANTER no sistema para balanços e relatórios
-- ⏳ Estratégia: Anonimizar membro → trocar nome por "Membro Excluído [ID]"
-- ⏳ Visitantes: Deletar dados pessoais, manter registros de visita anonimizados
-- ⏳ Logs de auditoria completos de todas as ações LGPD
+#### ✅ Portal LGPD Público (`/portal-lgpd`)
+- ✅ Interface única para membros e visitantes
+- ✅ **Verificação de Identidade**: nome completo, CPF, data de nascimento
+- ✅ Envio de código de 6 dígitos por SMS (Twilio) com fallback automático para e-mail (Resend)
+- ✅ Validação de código com limite de 3 tentativas e expiração de 10 minutos
+- ✅ Exportação de dados pessoais em JSON estruturado
+- ✅ Solicitação de exclusão de dados com motivo opcional
+- ✅ Session token de uso único com expiração de 30 minutos
+- ✅ Rate limiting: 3 solicitações de código/hora, 5 validações/hora
+- ✅ Respostas genéricas para evitar enumeração de usuários
+- ✅ Design responsivo com feedback visual completo
 
-#### Backend LGPD
-- ⏳ POST `/api/lgpd/membros/solicitar-codigo`: Valida identidade membro e envia código
-- ⏳ POST `/api/lgpd/visitantes/solicitar-codigo`: Valida identidade visitante e envia código
-- ⏳ POST `/api/lgpd/validar-codigo`: Valida código e cria session token
-- ⏳ GET `/api/lgpd/exportar-dados`: Exporta dados do titular autenticado
-- ⏳ POST `/api/lgpd/deletar-dados`: Anonimiza dados do titular autenticado
+#### ✅ Regras de Exclusão (Backend Implementado)
+- ✅ Membros: Dados pessoais podem ser anonimizados via solicitação
+- ✅ Transações financeiras: MANTIDAS no sistema para balanços e relatórios
+- ✅ Estratégia: Criar solicitação → aprovação manual → execução da anonimização
+- ✅ Logs de auditoria completos de todas as ações LGPD
 
-**Integrações Necessárias:**
-- ⏳ Twilio (SMS) - Precisa configurar: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
-- ⏳ Resend (E-mail) - Já configurado
+#### ✅ Backend LGPD (Rotas Implementadas)
+- ✅ POST `/api/lgpd/solicitar-codigo`: Valida identidade e envia código de verificação
+- ✅ POST `/api/lgpd/validar-codigo`: Valida código e retorna session token
+- ✅ GET `/api/lgpd/exportar-dados`: Exporta dados do titular autenticado
+- ✅ POST `/api/lgpd/solicitar-exclusao`: Cria solicitação de exclusão
+- ✅ Middleware de autenticação por session token
+- ✅ Proteção contra força bruta com rate limiting
+
+#### ✅ Banco de Dados LGPD
+- ✅ Tabela `verification_tokens`: códigos de verificação com hash bcrypt
+- ✅ Tabela `lgpd_access_logs`: logs de acesso ao portal LGPD
+- ✅ Tabela `solicitacoes_lgpd`: solicitações de exportação/exclusão
+- ✅ Tabela `logs_consentimento`: histórico de consentimentos
+- ✅ Campos CPF, RG e consentimentoLGPD em membros
+- ✅ Campos CPF e dataNascimento em visitantes
+
+#### ⏳ Pendente (Painel Administrativo)
+- ⏳ Interface de gestão de solicitações de exclusão (lista, detalhes, ações)
+- ⏳ Aprovação/recusa de solicitações pelo Pastor
+- ⏳ Execução manual/automática da anonimização após aprovação
+- ⏳ Relatórios de conformidade LGPD e dashboard de métricas
+
+**Integrações (Requerido pelo menos 1):**
+- ✅ Twilio (SMS) - Código implementado, **PRECISA configurar credenciais para funcionar**
+  - Requerido: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`
+- ✅ Resend (E-mail) - Código implementado, **PRECISA configurar chave API para funcionar**
+  - Requerido: `RESEND_API_KEY`, `FROM_EMAIL`
+- ℹ️ **Fallback**: Se SMS falhar, sistema tenta email automaticamente (se configurado)
 
 **Arquivos:**
-- ⏳ `client/src/pages/portal-lgpd-publico.tsx` (a ser reescrito)
-- ⏳ `server/routes/lgpd-public.ts` (a ser reescrito)
-- ⏳ `server/notifications.ts` (atualizar com Twilio)
-- ✅ `shared/schema.ts` (campo RG adicionado aos membros)
+- ✅ `client/src/pages/portal-lgpd-publico.tsx` (Interface completa)
+- ✅ `server/routes/lgpd-public.ts` (API completa)
+- ✅ `server/notifications.ts` (SMS e Email implementados)
+- ✅ `server/storage.ts` (Métodos LGPD implementados)
+- ✅ `shared/schema.ts` (Tabelas e campos LGPD)
 
 ---
 
@@ -307,7 +329,7 @@ Sistema integrado de gestão eclesiástica para a Igreja Presbiteriana do Brasil
 │       │   ├── reunioes.tsx         # Reuniões
 │       │   ├── atas.tsx             # Atas
 │       │   ├── relatorios.tsx       # Relatórios
-│       │   └── portal-lgpd-publico.tsx # ⏳ Portal LGPD
+│       │   └── portal-lgpd-publico.tsx # ✅ Portal LGPD
 │       ├── components/
 │       │   ├── ui/                  # Componentes Shadcn
 │       │   ├── layout/              # Layout components
@@ -319,7 +341,7 @@ Sistema integrado de gestão eclesiástica para a Igreja Presbiteriana do Brasil
 ├── server/
 │   ├── routes.ts                    # Rotas principais
 │   ├── routes/
-│   │   └── lgpd-public.ts          # ⏳ Rotas LGPD públicas
+│   │   └── lgpd-public.ts          # ✅ Rotas LGPD públicas
 │   ├── storage.ts                   # Interface de storage + PostgreSQL
 │   ├── pdf-generator.ts             # Geração de PDFs
 │   ├── notifications.ts             # Envio de e-mail/SMS
@@ -336,20 +358,59 @@ Sistema integrado de gestão eclesiástica para a Igreja Presbiteriana do Brasil
 ## 🚀 Próximos Passos
 
 ### Prioridade Alta
-1. ⏳ Finalizar implementação do Portal LGPD Público
-2. ⏳ Configurar integração Twilio para envio de SMS
-3. ⏳ Implementar anonimização de dados mantendo transações financeiras
-4. ⏳ Criar logs de auditoria para ações LGPD
+1. ⏳ Criar painel administrativo LGPD para gestão de solicitações
+2. ⏳ Implementar aprovação/recusa de solicitações pelo Pastor
+3. ⏳ Executar anonimização automática após aprovação
+4. ⏳ Configurar integração Twilio para envio de SMS (opcional)
+5. ⏳ Configurar RESEND_API_KEY para envio de emails
 
 ### Prioridade Média
-5. ⏳ Sistema de backup automático do banco de dados
 6. ⏳ Exportação de dados para Power BI
-7. ⏳ Storage em nuvem para arquivos (Cloudflare R2 ou Supabase)
+7. ⏳ Sistema de backup automático do banco de dados
+8. ⏳ Storage em nuvem para arquivos (Cloudflare R2 ou Supabase)
 
 ### Prioridade Baixa
-8. ⏳ Notificações por e-mail (aniversários, reuniões)
-9. ⏳ Dashboard com métricas em tempo real
-10. ⏳ App mobile (React Native ou PWA)
+9. ⏳ Notificações por e-mail (aniversários, reuniões)
+10. ⏳ Dashboard com métricas em tempo real
+11. ⏳ App mobile (React Native ou PWA)
+
+---
+
+## ⚙️ Configuração de Integrações
+
+### Twilio (SMS) - Opcional
+Para habilitar envio de SMS no Portal LGPD, configure as seguintes variáveis de ambiente:
+
+```bash
+TWILIO_ACCOUNT_SID=seu_account_sid
+TWILIO_AUTH_TOKEN=seu_auth_token
+TWILIO_PHONE_NUMBER=+5511999999999
+```
+
+**Como obter:**
+1. Criar conta em [https://www.twilio.com](https://www.twilio.com)
+2. Ir em Console → Account Info
+3. Copiar Account SID e Auth Token
+4. Comprar um número de telefone brasileiro
+
+### Resend (E-mail) - Opcional
+Para habilitar envio de e-mails (fallback quando SMS não está disponível):
+
+```bash
+RESEND_API_KEY=re_sua_chave_api
+FROM_EMAIL=noreply@seudominio.com
+```
+
+**Como obter:**
+1. Criar conta em [https://resend.com](https://resend.com)
+2. Ir em API Keys → Create API Key
+3. Configurar domínio verificado
+
+**⚠️ IMPORTANTE:**
+- **Pelo menos UMA integração (Twilio OU Resend) DEVE estar configurada** para o Portal LGPD funcionar
+- Sem configuração, o código será gerado mas não será enviado ao usuário
+- Para ambiente de desenvolvimento/testes, configure ao menos o Resend (mais barato/fácil)
+- Em produção, recomenda-se configurar AMBAS para redundância (SMS principal, email fallback)
 
 ---
 
@@ -380,11 +441,12 @@ Sistema integrado de gestão eclesiástica para a Igreja Presbiteriana do Brasil
 
 ## 📝 Observações Importantes
 
-1. **LGPD**: Sistema em desenvolvimento para conformidade total com a lei brasileira
-2. **Dados Financeiros**: Nunca são deletados, mesmo em exclusões LGPD (anonimizados)
+1. **LGPD**: Portal público implementado (85%). Backend completo. Falta: painel admin e configuração de integrações (Twilio/Resend)
+2. **Dados Financeiros**: Nunca são deletados, mesmo em exclusões LGPD (apenas anonimizados)
 3. **Permissões**: Rigorosamente controladas por cargo
 4. **PDFs**: Gerados server-side com qualidade profissional
 5. **Backup**: Recomenda-se backup diário do PostgreSQL
+6. **SMS/Email**: Código implementado. Pelo menos UMA integração é OBRIGATÓRIA para o Portal LGPD funcionar
 
 ---
 

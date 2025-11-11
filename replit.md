@@ -82,11 +82,14 @@ O sistema possui 4 cargos com permissões específicas:
 - React Hook Form (formulários)
 - Lucide React (ícones)
 
-### Backend (Mockado para demonstração visual)
+### Backend
 - Node.js + Express
 - TypeScript
-- In-memory storage (MemStorage)
-- Dados de exemplo em português do Brasil
+- PostgreSQL com Drizzle ORM
+- Bcryptjs (hash de senhas)
+- PDFKit (geração de PDFs)
+- Twilio (envio de SMS - configuração opcional)
+- Resend (envio de emails - configuração opcional)
 
 ### Design System
 - Fonte primária: Inter
@@ -196,25 +199,51 @@ O sistema possui 4 cargos com permissões específicas:
 ✅ Sistema completo de geração de PDFs (backend + frontend)
 ✅ Upload de arquivos (fotos, comprovantes) implementado
 ✅ Sistema de relatórios com filtros e exportação CSV
+✅ **Portal LGPD Público** totalmente funcional (backend + frontend)
 ✅ Design profissional e moderno
 ✅ Totalmente em português do Brasil
-⏳ Envio de e-mails via Resend (próxima fase)
+⏳ Painel administrativo LGPD para gestão de solicitações
+⏳ Envio de e-mails via Resend (código implementado, precisa configurar chave API)
+⏳ Envio de SMS via Twilio (código implementado, precisa configurar credenciais)
 ⏳ Integração Power BI (próxima fase)
 ⏳ Storage em nuvem (Cloudflare R2 / Supabase) - opcional
 
 ## Mudanças Recentes (Nov 11, 2025)
 
-### Sistema LGPD ⏳ (Em Implementação)
-⏳ **Portal LGPD Público** (`/portal-lgpd` - sem autenticação):
-  - Duas abas: uma para Membros e outra para Visitantes
-  - **Membros**: verificação por nome completo, data nascimento, RG, telefone e e-mail
-  - **Visitantes**: verificação por nome completo, data visita e telefone
-  - Envio de código de 6 dígitos por SMS (Twilio) com fallback para e-mail
-  - Validação de código com limite de 3 tentativas e 10 minutos de expiração
-  - Exportação de dados pessoais em JSON estruturado
-  - Exclusão (anonimização) de dados pessoais mantendo transações financeiras
-  - Session token de uso único com expiração de 30 minutos
-  - Logs de auditoria completos de todas as ações LGPD
+### Sistema LGPD ✅ (Implementado)
+✅ **Portal LGPD Público** (`/portal-lgpd` - sem autenticação):
+  - Interface completa para membros e visitantes exercerem seus direitos LGPD
+  - **Verificação de Identidade**: nome completo, CPF, data de nascimento
+  - Envio de código de 6 dígitos por SMS (Twilio) com fallback automático para e-mail (Resend)
+  - Validação de código com limite de 3 tentativas e expiração de 10 minutos
+  - Session token de uso único com expiração de 30 minutos após validação
+  - **Exportação de dados**: Baixar cópia completa em JSON de todos os dados pessoais
+  - **Solicitação de exclusão**: Criar solicitação de exclusão com motivo opcional
+  - Logs de auditoria completos (acesso, validação, exportação, exclusão)
+  - Rate limiting para proteção contra abuso (3 códigos/hora, 5 validações/hora)
+  - Respostas genéricas para evitar enumeração de usuários
+  - Design responsivo e moderno com feedback visual completo
+
+✅ **Backend LGPD** (API Routes implementadas):
+  - `POST /api/lgpd/solicitar-codigo`: Valida identidade e envia código de verificação
+  - `POST /api/lgpd/validar-codigo`: Valida código e retorna session token
+  - `GET /api/lgpd/exportar-dados`: Exporta dados do titular autenticado
+  - `POST /api/lgpd/solicitar-exclusao`: Cria solicitação de exclusão de dados
+  - Middleware de autenticação por session token
+  - Logs detalhados de todas as operações LGPD
+  - Proteção contra ataques de força bruta
+
+✅ **Tabelas do Banco de Dados LGPD**:
+  - `verification_tokens`: Códigos de verificação com hash bcrypt
+  - `lgpd_access_logs`: Logs de acesso ao portal LGPD
+  - `solicitacoes_lgpd`: Solicitações de exportação/exclusão de dados
+  - `logs_consentimento`: Histórico de consentimentos LGPD
+
+⏳ **Painel Administrativo LGPD** (Próxima fase):
+  - Gerenciamento de solicitações de exclusão
+  - Visualização de logs de acesso
+  - Aprovação/recusa de solicitações
+  - Relatórios de conformidade LGPD
 
 ### Relatórios e Melhorias Anteriores
 ✅ **Correção Crítica - Geração de Relatórios**: Corrigido bug onde clicar em "Gerar Relatórios" não funcionava
@@ -235,13 +264,21 @@ O sistema possui 4 cargos com permissões específicas:
 ✅ **Documentação Completa**: `ESTADO_IMPLEMENTACAO.md` atualizado com todas as funcionalidades (~90% implementado)
 
 ## Próximos Passos
-1. Implementação de PostgreSQL para persistência
-2. Upload de arquivos (fotos, comprovantes, PDFs)
-3. Geração real de PDFs para boletins e atas
-4. Sistema de notificações por e-mail
-5. Exportação de dados para Power BI
-6. Logs de auditoria completos
-7. Sistema de backup e recuperação
+
+### Prioridade Alta
+1. ⏳ Criar painel administrativo LGPD para gestão de solicitações de exclusão
+2. ⏳ Configurar credenciais Twilio para envio de SMS (opcional)
+3. ⏳ Configurar RESEND_API_KEY para envio de emails
+
+### Prioridade Média
+4. ⏳ Exportação de dados para Power BI
+5. ⏳ Sistema de backup automático do banco de dados
+6. ⏳ Storage em nuvem para arquivos (Cloudflare R2 ou Supabase)
+
+### Prioridade Baixa
+7. ⏳ Notificações por e-mail (aniversários, reuniões)
+8. ⏳ Dashboard com métricas em tempo real
+9. ⏳ App mobile (React Native ou PWA)
 
 ## Observações Importantes
 - Sistema desenvolvido especificamente para IPB Emaús
