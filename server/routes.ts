@@ -3,7 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { upload } from "./upload";
 import { gerarPDFBoletim, gerarPDFAta } from "./pdf";
+import { enviarBoletimPorEmail } from "./email";
 import multer from "multer";
+import fs from "fs";
 import {
   insertUsuarioSchema,
   insertMembroSchema,
@@ -378,6 +380,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Erro ao gerar PDF do boletim:", error);
       res.status(500).json({ message: "Erro ao gerar PDF do boletim" });
+    }
+  });
+
+  app.post("/api/boletins/:id/enviar-email", async (req, res) => {
+    try {
+      const { destinatarios } = req.body;
+
+      if (!destinatarios || !Array.isArray(destinatarios) || destinatarios.length === 0) {
+        return res.status(400).json({ message: "Lista de destinatários é obrigatória" });
+      }
+
+      const boletim = await storage.getBoletim(req.params.id);
+      if (!boletim) {
+        return res.status(404).json({ message: "Boletim não encontrado" });
+      }
+
+      const resultado = await enviarBoletimPorEmail(boletim, destinatarios, boletim.pdfUrl || undefined);
+
+      if (resultado.sucesso) {
+        res.json({
+          message: resultado.mensagem,
+          destinatarios: destinatarios.length,
+        });
+      } else {
+        res.status(500).json({
+          message: resultado.mensagem,
+          erro: resultado.erro,
+        });
+      }
+    } catch (error: any) {
+      console.error("Erro ao enviar email do boletim:", error);
+      res.status(500).json({ message: "Erro ao enviar email do boletim" });
     }
   });
 
