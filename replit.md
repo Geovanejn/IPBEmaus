@@ -147,11 +147,14 @@ O sistema possui 4 cargos com permissões específicas:
 
 ## Características Especiais
 
-### LGPD
-- Consentimento explícito no cadastro
-- Controle de acesso por cargo
-- Logs de auditoria (preparado para implementação)
-- Possibilidade de exportação e exclusão de dados
+### LGPD (Conformidade com Lei Geral de Proteção de Dados)
+- Portal público para membros e visitantes exercerem seus direitos
+- Membros podem acessar com: nome completo, data nascimento, RG, telefone, e-mail
+- Visitantes podem acessar com: nome completo, data visita, telefone
+- Verificação por código SMS (Twilio) ou e-mail
+- Exportação de dados pessoais em formato JSON
+- Exclusão de dados pessoais (anonimização) mantendo registros financeiros
+- Logs de auditoria de todas as ações LGPD
 
 ### Integração entre Módulos
 - **Pastoral → Boletim**: Aniversariantes e visitantes automáticos
@@ -201,62 +204,17 @@ O sistema possui 4 cargos com permissões específicas:
 
 ## Mudanças Recentes (Nov 11, 2025)
 
-### Sistema LGPD Completo ✅
-✅ **Portal LGPD Público** (`/portal-lgpd` - sem autenticação):
-  - Stepper de 3 etapas: solicitar código → validar código → ações (exportar/excluir dados)
-  - Formulário de solicitação com verificação por CPF, nome, data de nascimento e telefone
-  - Envio de código de 6 dígitos por SMS ou e-mail
-  - Validação de código com limite de 3 tentativas
-  - Exportação de dados pessoais em JSON
-  - Solicitação de exclusão permanente de dados com motivo opcional
+### Sistema LGPD ⏳ (Em Implementação)
+⏳ **Portal LGPD Público** (`/portal-lgpd` - sem autenticação):
+  - Duas abas: uma para Membros e outra para Visitantes
+  - **Membros**: verificação por nome completo, data nascimento, RG, telefone e e-mail
+  - **Visitantes**: verificação por nome completo, data visita e telefone
+  - Envio de código de 6 dígitos por SMS (Twilio) com fallback para e-mail
+  - Validação de código com limite de 3 tentativas e 10 minutos de expiração
+  - Exportação de dados pessoais em JSON estruturado
+  - Exclusão (anonimização) de dados pessoais mantendo transações financeiras
   - Session token de uso único com expiração de 30 minutos
-  - Normalização automática de CPF (remove formatação antes do envio)
-  - Design responsivo com gradiente e identidade visual LGPD
-
-✅ **Página Administrativa LGPD** (`/lgpd-admin` - apenas PASTOR):
-  - **Aba Solicitações**: Gerenciamento de solicitações de acesso, exportação e exclusão
-    - Aprovar solicitações: exporta dados ou exclui permanentemente
-    - Recusar solicitações: com justificativa obrigatória
-    - Visualização de status (pendente, em andamento, concluída, recusada)
-  - **Aba Logs de Consentimento**: Histórico completo de alterações de consentimento
-    - Rastreamento de quando membros/visitantes concedem ou revogam consentimento
-    - Registro de IP e usuário responsável pela alteração
-    - Visualização de estado anterior → estado novo
-  - **Aba Logs de Auditoria**: Histórico de todas as ações no sistema
-    - Registro por módulo (pastoral, financeiro, diaconal, etc)
-    - Identificação do usuário, cargo e IP
-    - Descrição detalhada da ação realizada
-
-✅ **Backend LGPD** (rotas públicas em `/api/lgpd`):
-  - POST `/solicitar-codigo`: Valida dados e envia código de verificação
-  - POST `/validar-codigo`: Valida código e cria session token
-  - GET `/exportar-dados`: Exporta dados do titular autenticado
-  - POST `/solicitar-exclusao`: Cria solicitação de exclusão
-  - GET `/solicitacoes`: Lista todas as solicitações (admin)
-  - POST `/solicitacoes/:id/processar`: Aprova ou recusa solicitação (admin)
-  - GET `/exportar-titular/:tipo/:id`: Exporta dados de um titular específico (admin)
-  - DELETE `/excluir-titular/:tipo/:id`: Exclui permanentemente dados (admin)
-  - GET `/logs-consentimento`: Lista logs de alterações de consentimento (admin)
-  - GET `/logs-auditoria`: Lista todos os logs de auditoria (admin)
-
-✅ **Sistema de Logs de Consentimento**:
-  - Helper `registrarConsentimento()` integrado nas rotas de membros e visitantes
-  - Captura automática de IP (com suporte a x-forwarded-for)
-  - Registra usuário autenticado responsável pela alteração
-  - Logs criados em POST (quando consentimento = true) e PATCH (quando consentimento muda)
-  - Proteção com try/catch para não quebrar fluxo principal
-
-✅ **Integração com Storage**:
-  - Métodos para gerenciar solicitações LGPD no MemStorage
-  - Criação e processamento de solicitações
-  - Armazenamento de logs de consentimento e auditoria
-  - Exportação completa de dados do titular (membro ou visitante)
-  - Exclusão com soft-delete ou hard-delete conforme regulamentação
-
-✅ **Rotas e Navegação**:
-  - Rota pública `/portal-lgpd` acessível sem autenticação
-  - Rota administrativa `/lgpd-admin` restrita ao cargo PASTOR
-  - Link automático no menu dropdown do header para usuários PASTOR
+  - Logs de auditoria completos de todas as ações LGPD
 
 ### Relatórios e Melhorias Anteriores
 ✅ **Correção Crítica - Geração de Relatórios**: Corrigido bug onde clicar em "Gerar Relatórios" não funcionava

@@ -22,7 +22,8 @@ export type Usuario = typeof usuarios.$inferSelect;
 export const membros = pgTable("membros", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   nome: text("nome").notNull(),
-  cpf: text("cpf"), // Adicionado para LGPD público
+  cpf: text("cpf"),
+  rg: text("rg"), // Para verificação LGPD
   email: text("email"),
   telefone: text("telefone"),
   dataNascimento: date("data_nascimento"),
