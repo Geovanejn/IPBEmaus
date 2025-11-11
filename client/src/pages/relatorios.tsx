@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,7 +83,7 @@ export default function Relatorios() {
   const [dataFim, setDataFim] = useState("");
 
   // Query para relatório pastoral
-  const { data: relatorioPastoral, isLoading: loadingPastoral, refetch: refetchPastoral } = useQuery<RelatorioPastoral>({
+  const { data: relatorioPastoral, isLoading: loadingPastoral } = useQuery<RelatorioPastoral>({
     queryKey: ["/api/relatorios/pastoral", dataInicio, dataFim],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -96,7 +97,7 @@ export default function Relatorios() {
   });
 
   // Query para relatório financeiro
-  const { data: relatorioFinanceiro, isLoading: loadingFinanceiro, refetch: refetchFinanceiro } = useQuery<RelatorioFinanceiro>({
+  const { data: relatorioFinanceiro, isLoading: loadingFinanceiro } = useQuery<RelatorioFinanceiro>({
     queryKey: ["/api/relatorios/financeiro", dataInicio, dataFim],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -110,7 +111,7 @@ export default function Relatorios() {
   });
 
   // Query para relatório diaconal
-  const { data: relatorioDiaconal, isLoading: loadingDiaconal, refetch: refetchDiaconal } = useQuery<RelatorioDiaconal>({
+  const { data: relatorioDiaconal, isLoading: loadingDiaconal } = useQuery<RelatorioDiaconal>({
     queryKey: ["/api/relatorios/diaconal", dataInicio, dataFim],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -144,7 +145,7 @@ export default function Relatorios() {
     });
   };
 
-  const gerarRelatorios = () => {
+  const gerarRelatorios = async () => {
     if (!dataInicio || !dataFim) {
       toast({
         title: "Selecione o período",
@@ -154,9 +155,19 @@ export default function Relatorios() {
       return;
     }
 
-    if (temPermissao("pastoral", "leitura")) refetchPastoral();
-    if (temPermissao("financeiro", "leitura")) refetchFinanceiro();
-    if (temPermissao("diaconal", "leitura")) refetchDiaconal();
+    // Invalidar cache específico para forçar novo fetch
+    await queryClient.invalidateQueries({ 
+      queryKey: ["/api/relatorios/pastoral", dataInicio, dataFim],
+      exact: true 
+    });
+    await queryClient.invalidateQueries({ 
+      queryKey: ["/api/relatorios/financeiro", dataInicio, dataFim],
+      exact: true 
+    });
+    await queryClient.invalidateQueries({ 
+      queryKey: ["/api/relatorios/diaconal", dataInicio, dataFim],
+      exact: true 
+    });
   };
 
   const formatarValor = (centavos: number) => {
