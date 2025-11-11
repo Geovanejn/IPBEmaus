@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Church, Lock, Mail } from "lucide-react";
+import { Church, Lock, Mail, Shield } from "lucide-react";
 import logoIpbEmaus from "@assets/Logo IPE Completo sem fundo_1762855505939.png";
 
 export default function Login() {
@@ -105,8 +105,32 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Sistema exclusivo para liderança da IPB Emaús</p>
+          <div className="mt-6 space-y-4">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Acesso Público
+                </span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => setLocation("/portal-lgpd")}
+              data-testid="button-portal-lgpd"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Portal LGPD - Meus Dados Pessoais
+            </Button>
+
+            <div className="text-center text-sm text-muted-foreground">
+              <p>Sistema exclusivo para liderança da IPB Emaús</p>
+            </div>
           </div>
         </CardContent>
       </Card>
