@@ -12,6 +12,7 @@ import Financeiro from "@/pages/financeiro";
 import Diaconal from "@/pages/diaconal";
 import BoletimDominical from "@/pages/boletim";
 import SecretariaAtas from "@/pages/atas";
+import Relatorios from "@/pages/relatorios";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -71,6 +72,12 @@ const ROUTES: RouteConfig[] = [
     component: SecretariaAtas,
     allowedCargos: ["PASTOR", "PRESBITERO"],
     name: "Atas",
+  },
+  {
+    path: "/relatorios",
+    component: Relatorios,
+    allowedCargos: ["PASTOR", "PRESBITERO", "TESOUREIRO", "DIACONO"],
+    name: "Relatórios",
   },
 ];
 

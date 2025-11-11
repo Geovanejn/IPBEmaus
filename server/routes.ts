@@ -582,6 +582,264 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // ==================== RELATÓRIOS ====================
+  app.get("/api/relatorios/pastoral", async (req, res) => {
+    try {
+      const { dataInicio, dataFim } = req.query;
+      
+      const membros = await storage.getMembros();
+      const visitantes = await storage.getVisitantes();
+      
+      // Filtrar membros criados no período se houver filtro
+      let membrosFiltrados = membros;
+      let visitantesFiltrados = visitantes;
+      
+      if (dataInicio && dataFim) {
+        const inicio = new Date(dataInicio as string);
+        const fim = new Date(dataFim as string);
+        
+        membrosFiltrados = membros.filter(m => {
+          const dataCriacao = new Date(m.criadoEm);
+          return dataCriacao >= inicio && dataCriacao <= fim;
+        });
+        
+        visitantesFiltrados = visitantes.filter(v => {
+          const dataVisita = new Date(v.dataVisita);
+          return dataVisita >= inicio && dataVisita <= fim;
+        });
+      }
+      
+      // Estatísticas
+      const totalMembros = membros.length;
+      const membrosAtivos = membros.filter(m => m.status === "ativo").length;
+      const novosMembrosPeriodo = membrosFiltrados.length;
+      
+      // Aniversariantes do mês
+      const mesAtual = new Date().getMonth();
+      const aniversariantesMes = membros.filter(m => {
+        if (!m.dataNascimento) return false;
+        const dataNasc = new Date(m.dataNascimento);
+        return dataNasc.getMonth() === mesAtual;
+      });
+      
+      // Visitantes por status
+      const visitantesPorStatus = {
+        novo: visitantes.filter(v => v.status === "novo").length,
+        em_acompanhamento: visitantes.filter(v => v.status === "em_acompanhamento").length,
+        membro: visitantes.filter(v => v.status === "membro").length,
+        inativo: visitantes.filter(v => v.status === "inativo").length,
+      };
+      
+      res.json({
+        periodo: { dataInicio, dataFim },
+        resumo: {
+          totalMembros,
+          membrosAtivos,
+          novosMembrosPeriodo,
+          totalVisitantes: visitantes.length,
+          aniversariantesMes: aniversariantesMes.length,
+        },
+        visitantesPorStatus,
+        novosMembros: membrosFiltrados.map(m => ({
+          nome: m.nome,
+          email: m.email,
+          telefone: m.telefone,
+          dataCriacao: m.criadoEm,
+          status: m.status,
+        })),
+        visitantesRecentes: visitantesFiltrados.map(v => ({
+          nome: v.nome,
+          dataVisita: v.dataVisita,
+          status: v.status,
+          telefone: v.telefone,
+        })),
+        aniversariantes: aniversariantesMes.map(m => ({
+          nome: m.nome,
+          dataNascimento: m.dataNascimento,
+          telefone: m.telefone,
+        })),
+      });
+    } catch (error) {
+      console.error("Erro ao gerar relatório pastoral:", error);
+      res.status(500).json({ message: "Erro ao gerar relatório pastoral" });
+    }
+  });
+
+  app.get("/api/relatorios/financeiro", async (req, res) => {
+    try {
+      const { dataInicio, dataFim } = req.query;
+      
+      const transacoes = await storage.getTransacoes();
+      
+      // Filtrar transações no período
+      let transacoesFiltradas = transacoes;
+      if (dataInicio && dataFim) {
+        const inicio = new Date(dataInicio as string);
+        const fim = new Date(dataFim as string);
+        
+        transacoesFiltradas = transacoes.filter((t: any) => {
+          const dataTransacao = new Date(t.data);
+          return dataTransacao >= inicio && dataTransacao <= fim;
+        });
+      }
+      
+      // Calcular totais
+      const receitas = transacoesFiltradas.filter((t: any) => t.tipo === "receita");
+      const despesas = transacoesFiltradas.filter((t: any) => t.tipo === "despesa");
+      
+      const totalReceitas = receitas.reduce((acc: number, t: any) => acc + t.valor, 0);
+      const totalDespesas = despesas.reduce((acc: number, t: any) => acc + t.valor, 0);
+      const saldo = totalReceitas - totalDespesas;
+      
+      // Receitas por categoria
+      const receitasPorCategoria = receitas.reduce((acc: any, t: any) => {
+        acc[t.categoria] = (acc[t.categoria] || 0) + t.valor;
+        return acc;
+      }, {});
+      
+      // Despesas por categoria
+      const despesasPorCategoria = despesas.reduce((acc: any, t: any) => {
+        acc[t.categoria] = (acc[t.categoria] || 0) + t.valor;
+        return acc;
+      }, {});
+      
+      // Por centro de custo
+      const porCentroCusto = transacoesFiltradas.reduce((acc: any, t: any) => {
+        if (!acc[t.centroCusto]) {
+          acc[t.centroCusto] = { receitas: 0, despesas: 0 };
+        }
+        if (t.tipo === "receita") {
+          acc[t.centroCusto].receitas += t.valor;
+        } else {
+          acc[t.centroCusto].despesas += t.valor;
+        }
+        return acc;
+      }, {});
+      
+      res.json({
+        periodo: { dataInicio, dataFim },
+        resumo: {
+          totalReceitas,
+          totalDespesas,
+          saldo,
+          totalTransacoes: transacoesFiltradas.length,
+        },
+        receitasPorCategoria,
+        despesasPorCategoria,
+        porCentroCusto,
+        transacoes: transacoesFiltradas.map((t: any) => ({
+          id: t.id,
+          tipo: t.tipo,
+          categoria: t.categoria,
+          descricao: t.descricao,
+          valor: t.valor,
+          data: t.data,
+          centroCusto: t.centroCusto,
+          metodoPagamento: t.metodoPagamento,
+        })),
+      });
+    } catch (error) {
+      console.error("Erro ao gerar relatório financeiro:", error);
+      res.status(500).json({ message: "Erro ao gerar relatório financeiro" });
+    }
+  });
+
+  app.get("/api/relatorios/diaconal", async (req, res) => {
+    try {
+      const { dataInicio, dataFim } = req.query;
+      
+      const acoes = await storage.getAcoesDiaconais();
+      
+      // Filtrar ações no período
+      let acoesFiltradas = acoes;
+      if (dataInicio && dataFim) {
+        const inicio = new Date(dataInicio as string);
+        const fim = new Date(dataFim as string);
+        
+        acoesFiltradas = acoes.filter(a => {
+          const dataAcao = new Date(a.data);
+          return dataAcao >= inicio && dataAcao <= fim;
+        });
+      }
+      
+      // Estatísticas
+      const acoesPorTipo = acoesFiltradas.reduce((acc: any, a) => {
+        acc[a.tipo] = (acc[a.tipo] || 0) + 1;
+        return acc;
+      }, {});
+      
+      const valorTotalGasto = acoesFiltradas.reduce((acc, a) => {
+        return acc + (a.valorGasto || 0);
+      }, 0);
+      
+      // Lista de beneficiários únicos
+      const beneficiariosUnicos = new Set(acoesFiltradas.map(a => a.beneficiario));
+      
+      res.json({
+        periodo: { dataInicio, dataFim },
+        resumo: {
+          totalAcoes: acoesFiltradas.length,
+          valorTotalGasto,
+          beneficiariosAtendidos: beneficiariosUnicos.size,
+        },
+        acoesPorTipo,
+        acoes: acoesFiltradas.map(a => ({
+          id: a.id,
+          tipo: a.tipo,
+          descricao: a.descricao,
+          beneficiario: a.beneficiario,
+          telefone: a.telefone,
+          valorGasto: a.valorGasto,
+          data: a.data,
+        })),
+      });
+    } catch (error) {
+      console.error("Erro ao gerar relatório diaconal:", error);
+      res.status(500).json({ message: "Erro ao gerar relatório diaconal" });
+    }
+  });
+
+  app.get("/api/relatorios/export/:tipo", async (req, res) => {
+    try {
+      const { tipo } = req.params;
+      const { dataInicio, dataFim } = req.query;
+      
+      let csvData = "";
+      let filename = `relatorio_${tipo}_${new Date().toISOString().split('T')[0]}.csv`;
+      
+      if (tipo === "pastoral") {
+        const membros = await storage.getMembros();
+        csvData = "Nome,Email,Telefone,Data Nascimento,Status,Data Cadastro\n";
+        membros.forEach(m => {
+          csvData += `"${m.nome}","${m.email || ""}","${m.telefone || ""}","${m.dataNascimento || ""}","${m.status}","${m.criadoEm}"\n`;
+        });
+      } else if (tipo === "financeiro") {
+        const transacoes = await storage.getTransacoes();
+        csvData = "Data,Tipo,Categoria,Descrição,Valor (R$),Centro de Custo,Método Pagamento\n";
+        transacoes.forEach((t: any) => {
+          const valorReais = (t.valor / 100).toFixed(2);
+          csvData += `"${t.data}","${t.tipo}","${t.categoria}","${t.descricao}","${valorReais}","${t.centroCusto}","${t.metodoPagamento || ""}"\n`;
+        });
+      } else if (tipo === "diaconal") {
+        const acoes = await storage.getAcoesDiaconais();
+        csvData = "Data,Tipo,Descrição,Beneficiário,Telefone,Valor Gasto (R$)\n";
+        acoes.forEach(a => {
+          const valorReais = a.valorGasto ? (a.valorGasto / 100).toFixed(2) : "0.00";
+          csvData += `"${a.data}","${a.tipo}","${a.descricao}","${a.beneficiario}","${a.telefone || ""}","${valorReais}"\n`;
+        });
+      } else {
+        return res.status(400).json({ message: "Tipo de relatório inválido" });
+      }
+      
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send("\uFEFF" + csvData); // BOM para UTF-8
+    } catch (error) {
+      console.error("Erro ao exportar relatório:", error);
+      res.status(500).json({ message: "Erro ao exportar relatório" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
