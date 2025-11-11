@@ -2,7 +2,53 @@
 
 ## ✅ Problemas Corrigidos Nesta Sessão
 
-### 1. Erro no Painel Diaconal - Rota /api/usuarios Faltante (CORREÇÃO - 10/11/2025)
+### 1. Módulo de Relatórios Não Funcionava (CORREÇÃO - 11/11/2025)
+**Problema:** Ao clicar no botão "Gerar Relatórios", nada acontecia. Os relatórios não eram carregados mesmo com as rotas backend implementadas.
+
+**Causa Raiz:** 
+- As queries do React Query não tinham tipagem TypeScript explícita, causando erros de tipo
+- Os parâmetros `dataInicio` e `dataFim` eram incluídos apenas como chaves de cache, mas não eram passados como query string para o backend
+
+**Solução Implementada:**
+- Adicionadas interfaces TypeScript completas para os três tipos de relatórios:
+  - `RelatorioPastoral`: resumo, visitantesPorStatus, novosMembros
+  - `RelatorioFinanceiro`: resumo, receitasPorCategoria, despesasPorCategoria, porCentroCusto
+  - `RelatorioDiaconal`: resumo, acoesPorTipo, acoes
+- Adicionado `queryFn` customizado em cada query do React Query que:
+  - Cria URLSearchParams com dataInicio e dataFim
+  - Faz fetch explícito com os parâmetros corretos
+  - Trata erros adequadamente
+
+**Código Adicionado:**
+```typescript
+const { data: relatorioPastoral, isLoading, refetch } = useQuery<RelatorioPastoral>({
+  queryKey: ["/api/relatorios/pastoral", dataInicio, dataFim],
+  queryFn: async () => {
+    const params = new URLSearchParams();
+    if (dataInicio) params.append("dataInicio", dataInicio);
+    if (dataFim) params.append("dataFim", dataFim);
+    const response = await fetch(`/api/relatorios/pastoral?${params.toString()}`);
+    if (!response.ok) throw new Error("Erro ao carregar relatório pastoral");
+    return response.json();
+  },
+  enabled: temPermissao("pastoral", "leitura") && !!dataInicio && !!dataFim,
+});
+```
+
+**Comportamento:**
+- Botão "Gerar Relatórios" agora funciona corretamente
+- Relatórios são carregados com os dados do período selecionado
+- Tipagem completa previne erros de desenvolvimento
+- Exportação CSV funciona corretamente
+
+**Validação:**
+- Architect aprovou: tipagem correta, parâmetros sendo passados adequadamente
+- Todos os erros LSP resolvidos
+- Sistema type-safe end-to-end
+
+---
+
+### 2. Erro no Painel Diaconal - Rota /api/usuarios Faltante (CORREÇÃO - 10/11/2025)
 **Problema:** Ao acessar `/diaconal`, o sistema exibia "Erro ao carregar dados. Tente novamente." O componente Diaconal tentava buscar dados da rota `/api/usuarios` que não existia no backend, causando erro na query do React Query (`isErrorUsuarios` ficava `true`).
 
 **Solução Implementada:**

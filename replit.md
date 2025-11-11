@@ -200,6 +200,10 @@ O sistema possui 4 cargos com permissões específicas:
 ⏳ Storage em nuvem (Cloudflare R2 / Supabase) - opcional
 
 ## Mudanças Recentes (Nov 11, 2025)
+✅ **Correção Crítica - Geração de Relatórios**: Corrigido bug onde clicar em "Gerar Relatórios" não funcionava
+  - Adicionadas tipagens TypeScript completas para RelatorioPastoral, RelatorioFinanceiro e RelatorioDiaconal
+  - Implementado queryFn customizado para passar parâmetros dataInicio/dataFim corretamente
+  - Sistema agora carrega relatórios com dados do período selecionado
 ✅ **Módulo de Relatórios Completo**: Sistema completo de relatórios pastorais, financeiros e diaconais com filtros por período
 ✅ **Exportação de Dados**: Exportação em CSV com codificação UTF-8 para todos os tipos de relatórios
 ✅ **Visualizações Detalhadas**: Cards de resumo, estatísticas agregadas e análises por categoria/centro de custo
