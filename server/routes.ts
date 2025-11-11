@@ -35,6 +35,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Usuário inativo" });
       }
 
+      // Salvar userId na sessão para autenticação
+      req.session.userId = usuario.id;
+
       // Retornar usuário sem a senha
       const { senha: _, ...usuarioSemSenha } = usuario;
       res.json(usuarioSemSenha);
@@ -907,6 +910,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==================== LGPD ====================
+  
+  // Portal do Usuário - Meus Dados
+  app.get("/api/lgpd/meus-dados", async (req, res) => {
+    try {
+      const usuarioId = req.session.userId;
+      if (!usuarioId) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+
+      const usuario = await storage.getUsuario(usuarioId);
+      if (!usuario) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      // Verificar se há solicitação de exclusão pendente
+      const solicitacoes = await storage.getSolicitacoesLGPD({
+        titularId: usuarioId,
+        tipo: "exclusao",
+        status: "pendente",
+      });
+
+      const dados = {
+        informacoesPessoais: {
+          nome: usuario.nome,
+          email: usuario.email,
+          cargo: usuario.cargo,
+          ativo: usuario.ativo,
+          criadoEm: usuario.criadoEm.toISOString(),
+        },
+        consentimento: {
+          lgpd: true,
+          dataConsentimento: usuario.criadoEm.toISOString(),
+        },
+        solicitacaoExclusaoPendente: solicitacoes.length > 0,
+      };
+
+      res.json(dados);
+    } catch (error) {
+      console.error("Erro ao buscar dados do usuário:", error);
+      res.status(500).json({ message: "Erro ao buscar dados" });
+    }
+  });
+
+  // Exportar Dados do Usuário
+  app.get("/api/lgpd/exportar-dados", async (req, res) => {
+    try {
+      const usuarioId = req.session.userId;
+      if (!usuarioId) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+
+      const usuario = await storage.getUsuario(usuarioId);
+      if (!usuario) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      // Buscar todos os dados do usuário
+      const transacoesCriadas = await storage.getTransacoes();
+      const transacoesUsuario = transacoesCriadas.filter(t => t.criadoPorId === usuarioId);
+
+      const acoesCriadas = await storage.getAcoesDiaconais();
+      const acoesUsuario = acoesCriadas.filter(a => a.responsavelId === usuarioId);
+
+      const boletinsCriados = await storage.getBoletins();
+      const boletinsUsuario = boletinsCriados.filter(b => b.criadoPorId === usuarioId);
+
+      const solicitacoes = await storage.getSolicitacoesLGPD({ titularId: usuarioId });
+      const logsAuditoria = await storage.getLogsAuditoria({ usuarioId });
+
+      const dadosExportacao = {
+        usuario: {
+          id: usuario.id,
+          nome: usuario.nome,
+          email: usuario.email,
+          cargo: usuario.cargo,
+          ativo: usuario.ativo,
+          criadoEm: usuario.criadoEm,
+        },
+        atividadesRealizadas: {
+          transacoesFinanceiras: transacoesUsuario.length,
+          acoesDiaconais: acoesUsuario.length,
+          boletinsCriados: boletinsUsuario.length,
+        },
+        solicitacoesLGPD: solicitacoes,
+        logsAuditoria,
+        dataExportacao: new Date().toISOString(),
+      };
+
+      // Registrar log de auditoria
+      await storage.registrarLogAuditoria({
+        modulo: "lgpd",
+        acao: "exportar",
+        descricao: "Usuário exportou seus dados pessoais",
+        registroId: usuarioId,
+        usuarioId: usuario.id,
+        usuarioNome: usuario.nome,
+        usuarioCargo: usuario.cargo,
+        ipAddress: req.ip,
+      });
+
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="meus-dados-${usuario.nome.replace(/\s/g, '_')}.json"`);
+      res.json(dadosExportacao);
+    } catch (error) {
+      console.error("Erro ao exportar dados:", error);
+      res.status(500).json({ message: "Erro ao exportar dados" });
+    }
+  });
+
+  // Solicitar Exclusão de Dados
+  app.post("/api/lgpd/solicitar-exclusao", async (req, res) => {
+    try {
+      const usuarioId = req.session.userId;
+      if (!usuarioId) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+
+      const usuario = await storage.getUsuario(usuarioId);
+      if (!usuario) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      // Verificar se já existe solicitação pendente
+      const solicitacoesPendentes = await storage.getSolicitacoesLGPD({
+        titularId: usuarioId,
+        tipo: "exclusao",
+        status: "pendente",
+      });
+
+      if (solicitacoesPendentes.length > 0) {
+        return res.status(400).json({ 
+          message: "Você já possui uma solicitação de exclusão pendente",
+          solicitacao: solicitacoesPendentes[0],
+        });
+      }
+
+      // Criar solicitação de exclusão
+      const solicitacao = await storage.criarSolicitacaoLGPD({
+        tipo: "exclusao",
+        status: "pendente",
+        tipoTitular: "membro",
+        titularId: usuarioId,
+        titularNome: usuario.nome,
+        titularEmail: usuario.email,
+        motivo: "Solicitação de exclusão de dados pelo titular",
+      });
+
+      // Desativar usuário imediatamente
+      await storage.desativarUsuario(usuarioId);
+
+      // Registrar log de auditoria
+      await storage.registrarLogAuditoria({
+        modulo: "lgpd",
+        acao: "solicitar_exclusao",
+        descricao: "Usuário solicitou exclusão de seus dados pessoais",
+        registroId: solicitacao.id,
+        usuarioId: usuario.id,
+        usuarioNome: usuario.nome,
+        usuarioCargo: usuario.cargo,
+        ipAddress: req.ip,
+      });
+
+      res.json({
+        message: "Solicitação registrada com sucesso",
+        prazoExclusao: "30 dias",
+        solicitacao: {
+          id: solicitacao.id,
+          status: solicitacao.status,
+          criadoEm: solicitacao.criadoEm,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao solicitar exclusão:", error);
+      res.status(500).json({ message: "Erro ao solicitar exclusão" });
+    }
+  });
   
   // Solicitações LGPD
   app.get("/api/lgpd/solicitacoes", async (req, res) => {

@@ -50,9 +50,7 @@ export default function LGPD() {
     queryKey: ["/api/lgpd/meus-dados"],
     queryFn: async () => {
       const res = await fetch("/api/lgpd/meus-dados", {
-        headers: {
-          "x-user-id": usuario?.id || "",
-        },
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Erro ao carregar dados");
       return res.json();
@@ -66,9 +64,7 @@ export default function LGPD() {
     setExportando(true);
     try {
       const res = await fetch("/api/lgpd/exportar-dados", {
-        headers: {
-          "x-user-id": usuario.id,
-        },
+        credentials: "include",
       });
 
       if (!res.ok) throw new Error("Erro ao exportar dados");
@@ -105,9 +101,9 @@ export default function LGPD() {
     try {
       const res = await fetch("/api/lgpd/solicitar-exclusao", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": usuario.id,
         },
       });
 

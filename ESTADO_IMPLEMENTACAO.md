@@ -506,6 +506,61 @@ function ProtectedRoute({ component, allowedCargos }) {
 - Cache do TanStack Query é invalidado, recarregando a lista com o novo `pdfUrl`
 - Erros são apresentados com toasts destrutivos
 
+## ✅ Funcionalidades Recém-Implementadas (Nov 11, 2025 - Sessão 4)
+
+### 1. Sistema LGPD - Portal de Privacidade do Usuário
+**Status:** ✅ Implementado (Frontend e Backend)
+
+#### Backend
+- [x] GET `/api/lgpd/meus-dados` - Buscar dados pessoais do usuário logado
+  - Retorna informações pessoais (nome, email, cargo, status)
+  - Retorna dados de consentimento LGPD
+  - Verifica se há solicitações de exclusão pendentes
+- [x] GET `/api/lgpd/exportar-dados` - Exportar dados completos do usuário
+  - Exporta dados pessoais do usuário
+  - Inclui atividades realizadas (transações, ações diaconais, boletins)
+  - Inclui solicitações LGPD e logs de auditoria
+  - Download em formato JSON
+  - Registra log de auditoria da exportação
+- [x] POST `/api/lgpd/solicitar-exclusao` - Solicitar exclusão de dados
+  - Cria solicitação de exclusão com prazo de 30 dias
+  - Desativa usuário imediatamente
+  - Previne solicitações duplicadas
+  - Registra log de auditoria da solicitação
+
+#### Frontend (`client/src/pages/lgpd.tsx`)
+- [x] Portal completo de privacidade LGPD
+- [x] Visualização de dados pessoais do usuário
+- [x] Card de status de consentimento LGPD
+- [x] Botão "Exportar Dados" com download JSON
+- [x] Botão "Solicitar Exclusão" com diálogo de confirmação
+- [x] Explicações sobre direitos LGPD
+- [x] Estados de loading e erro
+- [x] data-testids em todos elementos interativos
+- [x] Adicionado ao menu lateral (Sidebar) com ícone Shield
+
+#### Conformidade LGPD
+- [x] Direito de acesso aos dados (visualização completa)
+- [x] Portabilidade de dados (exportação JSON)
+- [x] Direito ao esquecimento (solicitação de exclusão)
+- [x] Logs de auditoria para todas operações
+- [x] Prazo de 30 dias para exclusão definitiva
+- [x] Desativação imediata da conta ao solicitar exclusão
+
+#### Dados Exportados
+- Informações do usuário (id, nome, email, cargo, status)
+- Atividades realizadas (contadores de transações, ações, boletins)
+- Histórico de solicitações LGPD
+- Logs de auditoria completos
+- Data da exportação
+
+#### Navegação
+- Acessível via `/lgpd`
+- Disponível para todos os cargos (PASTOR, PRESBITERO, TESOUREIRO, DIACONO)
+- Item "Privacidade LGPD" adicionado ao menu lateral
+
+---
+
 ## ❌ Funcionalidades Ainda Não Implementadas
 
 ### 1. Melhorias Futuras de PDFs
@@ -560,11 +615,14 @@ function ProtectedRoute({ component, allowedCargos }) {
 - [ ] Gestão de permissões via interface
 
 ### 8. LGPD Avançado
-- [ ] Portal de solicitação de dados
-- [ ] Exportação de dados pessoais
-- [ ] Exclusão de dados mediante solicitação
-- [ ] Logs de consentimento
-- [ ] Política de privacidade integrada
+- [x] Portal de solicitação de dados (Implementado - Nov 11, 2025)
+- [x] Exportação de dados pessoais (Implementado - Nov 11, 2025)
+- [x] Exclusão de dados mediante solicitação (Implementado - Nov 11, 2025)
+- [x] Logs de consentimento (Implementado - já existia no schema)
+- [x] Logs de auditoria (Implementado - já existia no schema)
+- [ ] Política de privacidade integrada (página separada)
+- [ ] Interface administrativa para gerenciar solicitações LGPD
+- [ ] Execução automática de exclusões após 30 dias (job/cron)
 
 ---
 

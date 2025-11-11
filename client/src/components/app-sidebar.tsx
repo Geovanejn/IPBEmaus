@@ -25,6 +25,7 @@ import {
   LayoutDashboard,
   LogOut,
   Lock,
+  Shield,
 } from "lucide-react";
 import { PERMISSOES_POR_CARGO } from "@shared/schema";
 
@@ -78,6 +79,13 @@ export function AppSidebar() {
       rota: "/atas",
       permissao: permissoes.atas,
       modulo: "atas" as const,
+    },
+    {
+      nome: "Privacidade LGPD",
+      icone: Shield,
+      rota: "/lgpd",
+      permissao: permissoes.lgpd,
+      modulo: "lgpd" as const,
     },
   ];
 
